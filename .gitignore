@@ -1,0 +1,6 @@
+.cache/
+.vs/
+build/
+out/
+res/Models/
+compile_commands.json
