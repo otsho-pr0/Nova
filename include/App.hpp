@@ -35,15 +35,16 @@ private:
 	Model model = Model("../../../res/Models/Sponza.gltf");
 	Mesh* mesh = Mesh::Plane();
 	Camera camera;
-	struct
+	struct alignas(16)
 	{
-		alignas(16) int mode;
+		int mode;
+		int normalMap;
 	} pcbuffer;
 
-	struct
+	struct alignas(16)
 	{
-		alignas(16) Vector3 lightDir;
-		alignas(16) Vector3 cameraPos;
+		Vector3 lightDir;
+		Vector3 cameraPos;
 	} vcbuffer;
 	ImGuiIO& io = ImGui::GetIO();
 	void* pcb = Renderer::CreateConstantBuffer(sizeof(pcbuffer));

@@ -46,7 +46,10 @@ void* Renderer::CreateVertexShader(const wchar_t* path)
 	ID3DBlob* error;
 	D3DCompileFromFile(path, nullptr, nullptr, "main", "vs_4_1", 0u, 0u, &blob, &error);
 	if (error)
+	{
 		MessageBoxA(NULL, reinterpret_cast<LPCSTR>(error->GetBufferPointer()), "Vertex Shader", MB_OK);
+		error->Release();
+	}
 	device->CreateVertexShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &vs);
 	blob->Release();
 	return vs;
@@ -59,7 +62,10 @@ void* Renderer::CreatePixelShader(const wchar_t* path)
 	ID3DBlob* error;
 	D3DCompileFromFile(path, nullptr, nullptr, "main", "ps_4_1", 0u, 0u, &blob, &error);
 	if (error)
+	{
 		MessageBoxA(NULL, reinterpret_cast<LPCSTR>(error->GetBufferPointer()), "Pixel Shader", MB_OK);
+		error->Release();
+	}
 	device->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &ps);
 	blob->Release();
 	return ps;
@@ -105,6 +111,95 @@ void* Renderer::CreateTexture(void* data, unsigned int width, unsigned int heigh
 		return srv;
 	}
 	return tex;
+}
+
+void* Renderer::CreateTextureWithMipmapping(void* data, unsigned int width, unsigned int height, unsigned int channels)
+{
+	if (data)
+	{
+		ID3D11Texture2D* texture;
+		D3D11_TEXTURE2D_DESC td = {};
+		td.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		td.ArraySize = 1u;
+		td.MipLevels = 0u;
+		td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		td.SampleDesc.Count = 1u;
+		td.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+		td.Width = width;
+		td.Height = height;
+		device->CreateTexture2D(&td, nullptr, &texture);
+		context->UpdateSubresource(texture, 0u, nullptr, data, width * 4, 0u);
+
+		ID3D11ShaderResourceView* srv;
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
+		srvd.Format = td.Format;
+		srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvd.Texture2D.MipLevels = -1u;
+		device->CreateShaderResourceView(texture, &srvd, &srv);
+		context->GenerateMips(srv);
+		texture->Release();
+		return srv;
+	}
+	return tex;
+}
+
+void* Renderer::CreateInputLayout(const wchar_t* path)
+{
+	ID3D11InputLayout* il;
+	ID3D11ShaderReflection* sr;
+	ID3DBlob* blob;
+	ID3DBlob* error;
+	D3DCompileFromFile(path, nullptr, nullptr, "main", "vs_4_1", 0u, 0u, &blob, &error);
+	if (error)
+	{
+		MessageBoxA(NULL, reinterpret_cast<LPCSTR>(error->GetBufferPointer()), "Vertex Shader", MB_OK);
+		error->Release();
+	}
+	D3DReflect(blob->GetBufferPointer(), blob->GetBufferSize(), __uuidof(ID3D11ShaderReflection), reinterpret_cast<void**>(&sr));
+
+	UINT numElements = 0u;
+	D3D11_SIGNATURE_PARAMETER_DESC spd;
+	while (SUCCEEDED(sr->GetInputParameterDesc(numElements, &spd)))
+		numElements++;
+
+	D3D11_INPUT_ELEMENT_DESC* ied = new D3D11_INPUT_ELEMENT_DESC[numElements]{};
+
+	for (unsigned int i = 0u; i < numElements; i++)
+	{
+		static UINT offset = 0u;
+		D3D11_SIGNATURE_PARAMETER_DESC spd;
+		sr->GetInputParameterDesc(i, &spd);
+		ied[i].SemanticName = spd.SemanticName;
+		ied[i].SemanticIndex = spd.SemanticIndex;
+		ied[i].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+		ied[i].AlignedByteOffset = offset;
+
+		switch (spd.Mask)
+		{
+		case 0b000001:
+			ied[i].Format = DXGI_FORMAT_R32_FLOAT;
+			offset += sizeof(float);
+			break;
+		case 0b000011:
+			ied[i].Format = DXGI_FORMAT_R32G32_FLOAT;
+			offset += sizeof(float2);
+			break;
+		case 0b000111:
+			ied[i].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+			offset += sizeof(float3);
+			break;
+		case 0b001111:
+			ied[i].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			offset += sizeof(float4);
+			break;
+		}
+	}
+
+	device->CreateInputLayout(ied, numElements, blob->GetBufferPointer(), blob->GetBufferSize(), &il);
+	delete[] ied;
+	blob->Release();
+	sr->Release();
+	return il;
 }
 
 void Renderer::DestroyBuffer(void* buffer)
@@ -162,6 +257,11 @@ void Renderer::BindTexture(void* srv, unsigned char slot)
 	context->PSSetShaderResources(slot, 1u, reinterpret_cast<ID3D11ShaderResourceView**>(&srv));
 }
 
+void Renderer::BindInputLayout(void* il)
+{
+	context->IASetInputLayout(reinterpret_cast<ID3D11InputLayout*>(il));
+}
+
 void Renderer::UpdateConstantBuffer(void* cBuffer, void* buffer, size_t size)
 {
 	D3D11_MAPPED_SUBRESOURCE ms;
@@ -173,6 +273,35 @@ void Renderer::UpdateConstantBuffer(void* cBuffer, void* buffer, size_t size)
 void Renderer::DrawIndexed(unsigned int numIndices)
 {
 	context->DrawIndexed(numIndices, 0u, 0u);
+}
+
+void Renderer::DrawPoint(float2 coord, float aspect)
+{
+	static void* vs = Renderer::CreateVertexShader(L"../../../res/VertexDebug.hlsl");
+	static void* ps = Renderer::CreatePixelShader(L"../../../res/PixelDebug.hlsl");
+	ID3D11VertexShader* pVS;
+	ID3D11PixelShader* pPS;
+	context->VSGetShader(&pVS, nullptr, nullptr);
+	context->PSGetShader(&pPS, nullptr, nullptr);
+	ID3D11InputLayout* il;
+	context->IAGetInputLayout(&il);
+	context->IASetInputLayout(nullptr);
+
+	struct alignas(16)
+	{
+		float2 coord;
+		float aspect;
+	} cbuffer = { coord, aspect };
+	static void* cb = Renderer::CreateConstantBuffer(sizeof(cbuffer));
+	Renderer::UpdateConstantBuffer(cb, &cbuffer, sizeof(cbuffer));
+
+	Renderer::BindVertexShader(vs);
+	Renderer::BindPixelShader(ps);
+	Renderer::BindVSConstantBuffer(cb, 0u);
+	context->Draw(6u, 0);
+	context->IASetInputLayout(il);
+	context->VSSetShader(pVS, nullptr, 0u);
+	context->PSSetShader(pPS, nullptr, 0u);
 }
 
 RendererContext::RendererContext(Window& window) :
@@ -224,24 +353,8 @@ RendererContext::RendererContext(Window& window) :
 
 	ImGui_ImplDX11_Init(device, context);
 
-	ID3D11InputLayout* il;
-	ID3DBlob* blob;
-	ID3DBlob* error;
-	D3DCompileFromFile(L"../../../res/VertexShader.hlsl", nullptr, nullptr, "main", "vs_4_1", 0u, 0u, &blob, &error);
-	if (error)
-		MessageBoxA(NULL, reinterpret_cast<LPCSTR>(error->GetBufferPointer()), "Vertex Shader", MB_OK);
-
-	D3D11_INPUT_ELEMENT_DESC ied[] =
-	{
-		{.SemanticName = "POSITION",  .Format = DXGI_FORMAT_R32G32B32_FLOAT},
-		{.SemanticName = "TANGENT",   .Format = DXGI_FORMAT_R32G32B32_FLOAT, .AlignedByteOffset = sizeof(float3)},
-		{.SemanticName = "BITANGENT", .Format = DXGI_FORMAT_R32G32B32_FLOAT, .AlignedByteOffset = sizeof(float3)*2},
-		{.SemanticName = "NORMAL",    .Format = DXGI_FORMAT_R32G32B32_FLOAT, .AlignedByteOffset = sizeof(float3)*3},
-		{.SemanticName = "TEXCOORD",  .Format = DXGI_FORMAT_R32G32_FLOAT,    .AlignedByteOffset = sizeof(float3)*4}
-	};
-	device->CreateInputLayout(ied, sizeof(ied) / sizeof(*ied), blob->GetBufferPointer(), blob->GetBufferSize(), &il);
-	blob->Release();
-	context->IASetInputLayout(il);
+	void* il = Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
+	Renderer::BindInputLayout(il);
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	ID3D11SamplerState* ss;
@@ -250,6 +363,7 @@ RendererContext::RendererContext(Window& window) :
 	sd.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
 	sd.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
 	sd.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sd.MaxLOD = D3D11_FLOAT32_MAX;
 	device->CreateSamplerState(&sd, &ss);
 	context->PSSetSamplers(0u, 1u, &ss);
 

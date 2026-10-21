@@ -1,6 +1,7 @@
 cbuffer uni
 {
 	int mode;
+	int normalMap;
 };
 
 Texture2D diffuse;
@@ -28,8 +29,9 @@ float4 main(VSOutput i) : SV_Target
 	{
 		float4 diff = diffuse.Sample(ss, i.vTexCoord);
 		clip(diff.a - 0.9f);
-		float3 norm = normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f);
-		norm.y = -norm.y;
+		float3 norm = normalMap == 1 ? normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f) : float3(0.0f, 0.0f, 1.0f);
+		//if (normalMap == 1)
+		//		norm.y = -norm.y;
 		return diff * (min(max(dot(-i.vLightDir, norm), 0.0f), 0.5f) + pow(max(dot(reflect(i.vLightDir, norm), normalize(i.vCameraPos - i.vPos)), 0.0f), 16.0f) + 0.1f);
 	} break;
 	case 1:
@@ -38,11 +40,15 @@ float4 main(VSOutput i) : SV_Target
 	} break;
 	case 2:
 	{
-		return float4((mul(normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f), float3x3(i.vTangent, i.vBiTangent, i.vNormal)) + 1.0f) / 2.0f, 1.0f);
+		float3 norm = normalMap == 1 ? mul(normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f), float3x3(i.vTangent, i.vBiTangent, i.vNormal)) : mul(float3(0.0f, 0.0f, 1.0f), float3x3(i.vTangent, i.vBiTangent, i.vNormal));
+		//if (normalMap == 1)
+		//		norm.y = -norm.y;
+		return float4((norm + 1.0f) / 2.0f, 1.0f);
 	} break;
 	case 3:
 	{
-		return float4((i.vTexCoord + 1.0f) / 2.0f, 0.0f, 1.0f);
+		float3 norm = mul(float3(0.0f, 1.0f, 0.0f), float3x3(i.vTangent, i.vBiTangent, i.vNormal));
+		return float4((norm + 1.0f) / 2.0f, 1.0f);
 	} break;
 	}
 }

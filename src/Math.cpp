@@ -42,6 +42,11 @@ Vector2 Vector2::operator-(const Vector2& o) const
 	return { x - o.x, y - o.y };
 }
 
+Vector2 Vector2::operator-() const
+{
+	return { -x, -y };
+}
+
 Vector2& Vector2::operator-=(const Vector2& o)
 {
 	x -= o.x;
@@ -197,6 +202,11 @@ Vector3& Vector3::operator+=(const Vector3& o)
 Vector3 Vector3::operator-(const Vector3& o) const
 {
 	return { x - o.x, y - o.y, z - o.z };
+}
+
+Vector3 Vector3::operator-() const
+{
+	return { -x, -y, -z };
 }
 
 Vector3& Vector3::operator-=(const Vector3& o)
@@ -393,6 +403,11 @@ Vector4& Vector4::operator+=(const Vector4& o)
 Vector4 Vector4::operator-(const Vector4& o) const
 {
 	return { x - o.x, y - o.y, z - o.z, w - o.w };
+}
+
+Vector4 Vector4::operator-() const
+{
+	return { -x, -y, -z, -w };
 }
 
 Vector4& Vector4::operator-=(const Vector4& o)

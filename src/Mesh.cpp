@@ -7,6 +7,7 @@
 extern Material* mat;
 
 void* Mesh::mCB;
+bool Mesh::frustum = true;
 
 Mesh::Mesh(Vertex* vertices, size_t vSize, unsigned int* indices, size_t iSize) :
 	material(mat)
@@ -135,47 +136,56 @@ void Mesh::Draw(Matrix parent)
 		far: row 4 - row 3
 	*/
 
-	Matrix camera = Transform::projection * Transform::view;
+	//if (frustum)
+	{
+		Matrix MVP = Transform::projection * Transform::view * (parent * transform);
+		Vector4 corners[8] =
+		{
+			MVP * Vector4{ aabb.min.x, aabb.min.y, aabb.min.z, 1.0f },
+			MVP * Vector4{ aabb.max.x, aabb.min.y, aabb.min.z, 1.0f },
+			MVP * Vector4{ aabb.min.x, aabb.max.y, aabb.min.z, 1.0f },
+			MVP * Vector4{ aabb.min.x, aabb.min.y, aabb.max.z, 1.0f },
+			MVP * Vector4{ aabb.max.x, aabb.max.y, aabb.max.z, 1.0f },
+			MVP * Vector4{ aabb.min.x, aabb.max.y, aabb.max.z, 1.0f },
+			MVP * Vector4{ aabb.max.x, aabb.min.y, aabb.max.z, 1.0f },
+			MVP * Vector4{ aabb.max.x, aabb.max.y, aabb.min.z, 1.0f }
+		};
 
-	Vector3 center = cbuffer.model * ((aabb.max + aabb.min) / 2.0f);
-	Vector3 half_extents = cbuffer.model * ((aabb.max - aabb.min) / 2.0f);
+		
+		bool outLeft = true;
+		for (auto& corner : corners) if (corner.x >= -corner.w) { outLeft = false; break; };
+		if (outLeft)
+			return;
 
-	Vector4 left   = camera[3] + camera[0];
-	Vector4 right  = camera[3] - camera[0];
-	Vector4 bottom = camera[3] + camera[1];
-	Vector4 top    = camera[3] - camera[1];
-	Vector4 near   = camera[2];
-	Vector4 far    = camera[2] - camera[2];
+		bool outRight = true;
+		for (auto& corner : corners) if (corner.x <= corner.w) { outRight = false;  break; };
+		if (outRight)
+			return;
 
-	float s = Vector3::Dot(left, center) + left.w;
-	float r = Vector3::Dot({ Math::Abs(left.x), Math::Abs(left.y), Math::Abs(left.z) }, half_extents);
-	if (s + r < 0.0f)
-		return;
+		bool outTop = true;
+		for (auto& corner : corners) if (corner.y <= corner.w) { outTop = false;  break; };
+		if (outTop)
+			return;
 
-	s = Vector3::Dot(right, center) + right.w;
-	r = Vector3::Dot({ Math::Abs(right.x), Math::Abs(right.y), Math::Abs(right.z) }, half_extents);
-	if (s + r < 0.0f)
-		return;
+		bool outBottom = true;
+		for (auto& corner : corners) if (corner.y >= -corner.w) { outBottom = false;  break; };
+		if (outBottom)
+			return;
 
-	s = Vector3::Dot(bottom, center) + bottom.w;
-	r = Vector3::Dot({ Math::Abs(bottom.x), Math::Abs(bottom.y), Math::Abs(bottom.z) }, half_extents);
-	if (s + r < 0.0f)
-		return;
+		bool outNear = true;
+		for (auto& corner : corners) if (corner.z >= 0) { outNear = false;  break; };
+		if (outNear)
+			return;
 
-	s = Vector3::Dot(top, center) + top.w;
-	r = Vector3::Dot({ Math::Abs(top.x), Math::Abs(top.y), Math::Abs(top.z) }, half_extents);
-	if (s + r < 0.0f)
-		return;
+		bool outFar = true;
+		for (auto& corner : corners) if (corner.z <= corner.w) { outFar = false;  break; };
+		if (outFar)
+			return;
 
-	s = Vector3::Dot(near, center) + near.w;
-	r = Vector3::Dot({ Math::Abs(near.x), Math::Abs(near.y), Math::Abs(near.z) }, half_extents);
-	if (s + r < 0.0f)
-		return;
-
-	s = Vector3::Dot(far, center) + far.w;
-	r = Vector3::Dot({ Math::Abs(far.x), Math::Abs(far.y), Math::Abs(far.z) }, half_extents);
-	if (s + r < 0.0f)
-		return;
+		//for (auto& corner : corners)
+		//	if (corner.x >= -corner.w && corner.x <= corner.w && corner.y <= corner.w && corner.y >= -corner.w && corner.z >= 0 && corner.z <= corner.w)
+		//		Renderer::DrawPoint({ corner.x / corner.w, corner.y / corner.w }, Transform::projection[1][1] / Transform::projection[0][0]);
+	}
 
 	Renderer::BindVertexBuffer(mVB, sizeof(Vertex), 0u);
 	Renderer::BindIndexBuffer(mIB);

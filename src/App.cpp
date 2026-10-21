@@ -29,13 +29,16 @@ App::App()
 			camera.aspect = static_cast<float>(size.x) / size.y;
 		});
 
-	pcbuffer = { 0 };
+	pcbuffer = { 0, 0 };
 	vcbuffer = { Vector3(0.4f, -1.5f, 0.7f).Normalize(), camera.transform.Basis() * Vector3::Forward };
 	Renderer::UpdateConstantBuffer(pcb, &pcbuffer, sizeof(pcbuffer));
 	Renderer::UpdateConstantBuffer(vcb, &vcbuffer, sizeof(vcbuffer));
 	mesh->transform.scale = 5.0f;
 
 	ImGui::GetStyle().ScrollbarSize = 0.0f;
+	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+	Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
 }
 
 void App::Run()
@@ -86,13 +89,15 @@ void App::Update()
 	ImGui_ImplDX11_NewFrame();
 	ImGui::NewFrame();
 
-	ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus);
+	ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_AlwaysAutoResize);
 	ImGui::Text("FPS: %f", io.Framerate);
 	ImGui::Checkbox("VSync", &vsync);
+	ImGui::Checkbox("Frustum Culling", &Mesh::frustum);
 	ImGui::DragFloat("Sensetivity", &sensitivity, 1.0f, 10.0f, 100.0f);
 	if (ImGui::DragFloat3("light dir", &vcbuffer.lightDir, 0.01f))
 		vcbuffer.lightDir.Normalize();
 	ImGui::SliderInt("mode", &pcbuffer.mode, 0, 3);
+	ImGui::SliderInt("normalMap", &pcbuffer.normalMap, 0, 2);
 	vcbuffer.cameraPos = camera.transform.position;
 	ImGui::End();
 	ImGui::Begin("Inspector");

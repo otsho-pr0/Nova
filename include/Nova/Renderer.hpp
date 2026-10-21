@@ -17,34 +17,46 @@ typedef struct
 
 typedef struct
 {
+	float x;
+	float y;
+	float z;
+	float w;
+} float4;
+
+typedef struct
+{
 	float r;
 	float g;
 	float b;
 	float a;
 } Color;
 
-class Renderer
+namespace Renderer
 {
-public:
-	static void* CreateVertexBuffer(void* vertices, size_t size);
-	static void* CreateIndexBuffer(void* indices, size_t size);
-	static void* CreateVertexShader(const wchar_t* path);
-	static void* CreatePixelShader(const wchar_t* path);
-	static void* CreateConstantBuffer(size_t size);
-	static void* CreateTexture(void* data, unsigned int width, unsigned int height, unsigned int channels);
-	static void DestroyBuffer(void*);
-	static void DestroyVertexShader(void*);
-	static void DestroyPixelShader(void*);
-	static void DestroyTexture(void*);
-	static void BindVertexBuffer(void*, unsigned int stride, unsigned int offset);
-	static void BindIndexBuffer(void*);
-	static void BindVertexShader(void*);
-	static void BindPixelShader(void*);
-	static void BindVSConstantBuffer(void*, unsigned char slot);
-	static void BindPSConstantBuffer(void*, unsigned char slot);
-	static void BindTexture(void*, unsigned char slot);
-	static void UpdateConstantBuffer(void* cBuffer, void* buffer, size_t size);
-	static void DrawIndexed(unsigned int numIndices);
+	void* CreateVertexBuffer(void* vertices, size_t size);
+	void* CreateIndexBuffer(void* indices, size_t size);
+	void* CreateVertexShader(const wchar_t* path);
+	void* CreatePixelShader(const wchar_t* path);
+	void* CreateConstantBuffer(size_t size);
+	void* CreateTexture(void* data, unsigned int width, unsigned int height, unsigned int channels);
+	void* CreateTextureWithMipmapping(void* data, unsigned int width, unsigned int height, unsigned int channels);
+	void* CreateInputLayout(const wchar_t* path);
+	void DestroyBuffer(void*);
+	void DestroyVertexShader(void*);
+	void DestroyPixelShader(void*);
+	void DestroyTexture(void*);
+	void BindVertexBuffer(void*, unsigned int stride, unsigned int offset);
+	void BindIndexBuffer(void*);
+	void BindVertexShader(void*);
+	void BindPixelShader(void*);
+	void BindVSConstantBuffer(void*, unsigned char slot);
+	void BindPSConstantBuffer(void*, unsigned char slot);
+	void BindTexture(void*, unsigned char slot);
+	void BindInputLayout(void*);
+	void UpdateConstantBuffer(void* cBuffer, void* buffer, size_t size);
+	void DrawIndexed(unsigned int numIndices);
+
+	void DrawPoint(float2 coord, float aspect);
 };
 
 class RendererContext

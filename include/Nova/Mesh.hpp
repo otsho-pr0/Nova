@@ -30,6 +30,8 @@ public:
 	Transform transform;
 	Material* material;
 
+	static bool frustum;
+
 private:
 	Mesh(Vertex* vertices, size_t vSize, unsigned int* indices, size_t iSize);
 	Mesh(void* vb, void* ib, size_t count);

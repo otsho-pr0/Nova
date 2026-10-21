@@ -25,7 +25,7 @@ void ProcessNodes(Mesh** meshes, aiNode* parent, aiMatrix4x4 parentTransform = a
 Model::Model(const char* path)
 {
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipWindingOrder | aiProcess_MakeLeftHanded | aiProcess_FlipUVs | aiProcess_GenBoundingBoxes | aiProcess_RemoveRedundantMaterials | aiProcess_CalcTangentSpace);
+	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipWindingOrder | aiProcess_MakeLeftHanded | aiProcess_FlipUVs | aiProcess_GenBoundingBoxes  | aiProcess_CalcTangentSpace);
 	std::filesystem::path current = std::filesystem::path(path).parent_path();
 	mMeshes = new Mesh*[scene->mNumMeshes];
 	mNumMeshes = scene->mNumMeshes;
@@ -40,7 +40,7 @@ Model::Model(const char* path)
 		{
 			vertices[v].position = { mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z };
 			vertices[v].tanget = { mesh->mTangents[v].x, mesh->mTangents[v].y, mesh->mTangents[v].z };
-			vertices[v].biTanget = { mesh->mBitangents[v].x, mesh->mBitangents[v].y, mesh->mBitangents[v].z };
+			vertices[v].biTanget = -Vector3{ mesh->mBitangents[v].x, mesh->mBitangents[v].y, mesh->mBitangents[v].z };
 			vertices[v].normal = { mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z };
 			vertices[v].texCoord = { mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y };
 		}

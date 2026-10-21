@@ -17,10 +17,10 @@ set(ASSIMP_INSTALL off)
 add_subdirectory(thirdparty/assimp/)
 
 file(GLOB_RECURSE SOURCES src/*.c*)
-file(GLOB_RECURSE IMGUI_SOURCES thirdparty/imgui/*.c*)
+file(GLOB IMGUI_SOURCES thirdparty/imgui/*.c* thirdparty/imgui/backends/imgui_impl_win32.cpp thirdparty/imgui/backends/imgui_impl_dx11.cpp)
 add_executable(Nova ${SOURCES} ${IMGUI_SOURCES} thirdparty/stb/stb_image.c)
 target_include_directories(Nova PRIVATE thirdparty/stb/)
-target_include_directories(Nova PRIVATE thirdparty/imgui/)
+target_include_directories(Nova PRIVATE thirdparty/imgui/ thirdparty/imgui/backends)
 target_include_directories(Nova PUBLIC include/)
 target_link_libraries(Nova PUBLIC dxgi d3d11 d3dcompiler dwmapi assimp)
 
