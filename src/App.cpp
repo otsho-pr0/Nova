@@ -96,8 +96,8 @@ void App::Update()
 	ImGui::DragFloat("Sensetivity", &sensitivity, 1.0f, 10.0f, 100.0f);
 	if (ImGui::DragFloat3("light dir", &vcbuffer.lightDir, 0.01f))
 		vcbuffer.lightDir.Normalize();
-	ImGui::SliderInt("mode", &pcbuffer.mode, 0, 3);
-	ImGui::SliderInt("normalMap", &pcbuffer.normalMap, 0, 2);
+	ImGui::SliderInt("mode", &pcbuffer.mode, 0, 5);
+	ImGui::Checkbox("Normal Mapping", reinterpret_cast<bool*>(&pcbuffer.normalMapping));
 	vcbuffer.cameraPos = camera.transform.position;
 	ImGui::End();
 	ImGui::Begin("Inspector");
@@ -188,7 +188,7 @@ void App::Render()
 {
 	context.Clear({ 0.0f, 0.0f, 0.0f, 1.0f });
 	model.Draw();
-	mesh->Draw();
+	//mesh->Draw();
 	ImGui::Render();
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 	context.SwapBuffers(vsync);

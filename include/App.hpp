@@ -38,13 +38,13 @@ private:
 	struct alignas(16)
 	{
 		int mode;
-		int normalMap;
+		int normalMapping;
 	} pcbuffer;
 
 	struct alignas(16)
 	{
-		Vector3 lightDir;
-		Vector3 cameraPos;
+		alignas(16) Vector3 lightDir;
+		alignas(16) Vector3 cameraPos;
 	} vcbuffer;
 	ImGuiIO& io = ImGui::GetIO();
 	void* pcb = Renderer::CreateConstantBuffer(sizeof(pcbuffer));

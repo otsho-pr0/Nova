@@ -44,14 +44,18 @@ void* Renderer::CreateVertexShader(const wchar_t* path)
 	ID3D11VertexShader* vs;
 	ID3DBlob* blob;
 	ID3DBlob* error;
-	D3DCompileFromFile(path, nullptr, nullptr, "main", "vs_4_1", 0u, 0u, &blob, &error);
+	std::printf("Compiling Vertex Shader '%ws': ", path);
+	D3DCompileFromFile(path, nullptr, nullptr, "main", "vs_4_1", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0u, &blob, &error);
 	if (error)
 	{
+		std::puts("Failed!");
 		MessageBoxA(NULL, reinterpret_cast<LPCSTR>(error->GetBufferPointer()), "Vertex Shader", MB_OK);
 		error->Release();
+		return nullptr;
 	}
 	device->CreateVertexShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &vs);
 	blob->Release();
+	std::puts("Compiled!");
 	return vs;
 }
 
@@ -60,14 +64,18 @@ void* Renderer::CreatePixelShader(const wchar_t* path)
 	ID3D11PixelShader* ps;
 	ID3DBlob* blob;
 	ID3DBlob* error;
-	D3DCompileFromFile(path, nullptr, nullptr, "main", "ps_4_1", 0u, 0u, &blob, &error);
+	std::printf("Compiling Pixel Shader  '%ws': ", path);
+	D3DCompileFromFile(path, nullptr, nullptr, "main", "ps_4_1", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0u, &blob, &error);
 	if (error)
 	{
+		std::puts("Failed!");
 		MessageBoxA(NULL, reinterpret_cast<LPCSTR>(error->GetBufferPointer()), "Pixel Shader", MB_OK);
 		error->Release();
+		return nullptr;
 	}
 	device->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &ps);
 	blob->Release();
+	std::puts("Compiled!");
 	return ps;
 }
 
@@ -359,10 +367,12 @@ RendererContext::RendererContext(Window& window) :
 
 	ID3D11SamplerState* ss;
 	D3D11_SAMPLER_DESC sd = {};
+	//sd.Filter   = D3D11_FILTER_ANISOTROPIC;
+	sd.Filter   = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 	sd.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
 	sd.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
 	sd.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	sd.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	//sd.MaxAnisotropy = 1;
 	sd.MaxLOD = D3D11_FLOAT32_MAX;
 	device->CreateSamplerState(&sd, &ss);
 	context->PSSetSamplers(0u, 1u, &ss);
