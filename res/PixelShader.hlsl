@@ -27,8 +27,11 @@ float4 main(VSOutput i) : SV_Target
 	{
 		float4 diff = diffuse.Sample(ss, i.vTexCoord);
 		clip(diff.a - 0.9f);
-		float3 norm = normalMapping ? normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f) : float3(0.0f, 0.0f, 1.0f);
-		return diff * (min(max(dot(-i.vLightDir, norm), 0.0f), 0.5f) + pow(max(dot(reflect(i.vLightDir, norm), i.vCameraDir), 0.0f), 32.0f) + 0.1f);
+		float3 N = normalMapping ? normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f) : float3(0.0f, 0.0f, 1.0f);
+		float3 L = normalize(-i.vLightDir);
+		float3 V = normalize(i.vCameraDir);
+		float3 H = normalize(L + V);
+		return diff * (min(max(dot(L, N), 0.0f), 0.5f) + pow(max(dot(N, H), 0.0f), 32.0f) + 0.1f);
 	} break;
 	case 1:
 	{
@@ -36,8 +39,11 @@ float4 main(VSOutput i) : SV_Target
 	} break;
 	case 2:
 	{
-		float3 norm = normalMapping ? normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f) : float3(0.0f, 0.0f, 1.0f);
-		return pow(max(dot(reflect(i.vLightDir, norm), i.vCameraDir), 0.0f), 32.0f);
+		float3 N = normalMapping ? normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f) : float3(0.0f, 0.0f, 1.0f);
+		float3 L = normalize(-i.vLightDir);
+		float3 V = normalize(i.vCameraDir);
+		float3 H = normalize(L + V);
+		return pow(max(dot(N, H), 0.0f), 32.0f);
 	} break;
 	case 3:
 	{
@@ -50,5 +56,5 @@ float4 main(VSOutput i) : SV_Target
 	} break;
 	}
 	
-	return 1.0f;
+	return pow(i.SV.z, 100.0f);
 }

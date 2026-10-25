@@ -32,6 +32,6 @@ VSOutput main(float3 aPos : POSITION, float3 aTangent : TANGENT, float3 aBiTange
 	float3x3 TBN = float3x3(o.vTangent, o.vBiTangent, o.vNormal);
 	o.vTexCoord = aTexCoord;
 	o.vLightDir = mul(TBN, lightDir);
-	o.vCameraDir = normalize(mul(TBN, cameraPos - mul(float4(aPos, 1.0f), model).xyz));
+	o.vCameraDir = mul(TBN, cameraPos - mul(float4(aPos, 1.0f), model).xyz);
 	return o;
 }
