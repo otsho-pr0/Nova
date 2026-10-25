@@ -33,7 +33,7 @@ void Nova::Init()
 {
 	RegisterClassW(&wc);
 
-	CreateDXGIFactory1(__uuidof(IDXGIFactory), reinterpret_cast<void**>(&factory));
+	CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&factory));
 
 	IDXGIAdapter1* a;
 	UINT i = 0;

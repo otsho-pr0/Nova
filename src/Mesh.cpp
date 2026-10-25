@@ -25,22 +25,6 @@ Mesh::Mesh(void* vb, void* ib, size_t count) :
 	mCount = count;
 }
 
-void Mesh::DrawWithNoDraw(Matrix parent)
-{
-	struct
-	{
-		Matrix projection;
-		Matrix view;
-		Matrix model;
-	} cbuffer = { Transform::projection, Transform::view, parent * transform };
-	Renderer::UpdateConstantBuffer(mCB, &cbuffer, sizeof(cbuffer));
-	Renderer::BindVertexBuffer(mVB, sizeof(Vertex), 0u);
-	Renderer::BindIndexBuffer(mIB);
-	Renderer::BindVSConstantBuffer(mCB, 0u);
-	material->Bind();
-	Renderer::DrawIndexed(mCount);
-}
-
 Mesh* Mesh::Cube()
 {
 	Vertex vertices[] =

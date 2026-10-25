@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Nova/Nova.hpp>
-#include <Nova/Transform.hpp>
+#include <Nova/Node.hpp>
 #include <Nova/Material.hpp>
 
 struct Vertex
@@ -13,13 +13,13 @@ struct Vertex
 	Vector2 texCoord;
 };
 
-class Mesh
+class Mesh : public Node
 {
 public:
 	static Mesh* Cube();
 	static Mesh* Plane();
 
-	void Draw(Matrix parent = Matrix(1.0f));
+	void Draw(Matrix parent = Matrix(1.0f)) override;
 
 	struct AABB
 	{
@@ -27,7 +27,6 @@ public:
 		Vector3 max;
 	} aabb;
 
-	Transform transform;
 	Material* material;
 
 	static bool frustum;
@@ -38,8 +37,6 @@ private:
 
 	friend class ResourceManager;
 	friend void Nova::Init();
-
-	void DrawWithNoDraw(Matrix parent = Matrix(1.0f));
 
 	void* mVB;
 	void* mIB;

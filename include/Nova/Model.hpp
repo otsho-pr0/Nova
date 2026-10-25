@@ -2,15 +2,11 @@
 
 #include <Nova/Mesh.hpp>
 
-class Model
+class Model : public Node
 {
 public:
 	Model(const char* path);
 	~Model();
-
-	void Draw();
-
-	Transform transform;
 
 private:
 	Mesh** mMeshes;

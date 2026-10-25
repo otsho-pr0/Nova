@@ -174,6 +174,31 @@ void App::Update()
 	}
 	ImGui::End();
 
+	ImGui::Begin("Hierarchy");
+	ImGui::Columns(2);
+	static Node* selected = &model;
+	auto hy = [&](auto& self, Node* node) -> void
+		{
+			if (ImGui::TreeNodeEx(node->name.c_str(), node->children.size() == 0u ? ImGuiTreeNodeFlags_Leaf : 0u))
+			{
+				if (ImGui::IsItemActivated())
+					selected = node;
+				for (auto* child : node->children)
+					self(self, child);
+				ImGui::TreePop();
+			}
+		};
+	hy(hy, &model);
+	ImGui::NextColumn();
+	ImGui::DragFloat3("position", &selected->transform.position, 0.01f);
+	ImGui::SliderAngle("x", &selected->transform.rotation.x);
+	ImGui::SliderAngle("y", &selected->transform.rotation.y);
+	ImGui::SliderAngle("z", &selected->transform.rotation.z);
+	ImGui::DragFloat3("scale", &selected->transform.scale, 0.01f);
+	ImGui::End();
+
+	ImGui::ShowDemoWindow();
+
 	if (window.ShouldClose() or Input::GetKey(Input::Key::Key_Escape))
 		window.Close();
 
