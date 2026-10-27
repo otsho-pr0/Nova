@@ -36,6 +36,9 @@ App::App()
 	mesh->transform.scale = 5.0f;
 
 	ImGui::GetStyle().ScrollbarSize = 0.0f;
+	ImGui::GetStyle().Colors[ImGuiCol_DockingEmptyBg] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = { 0.0f, 0.0f, 0.0f, 0.5f };
+	ImGui::GetStyle().DockingSeparatorSize = 1u;
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
 	Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
@@ -56,6 +59,12 @@ void App::Update()
 
 	if (Input::GetKeyUp(Input::Key::Key_F11))
 		context.SetFullscreenState(!context.GetFullscreenState());
+
+	if (Input::GetKeyUp(Input::Key::Key_F1))
+		settings = !settings;
+
+	if (window.ShouldClose() or Input::GetKey(Input::Key::Key_Escape))
+		window.Close();
 
 	static Vector3 target = camera.transform.rotation;
 	camera.transform.rotation.y = Math::LerpAngle(camera.transform.rotation.y, target.y, Time::DeltaTime() * 20.0f);
@@ -89,118 +98,85 @@ void App::Update()
 	ImGui_ImplDX11_NewFrame();
 	ImGui::NewFrame();
 
-	ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_AlwaysAutoResize);
-	ImGui::Text("FPS: %f", io.Framerate);
-	ImGui::Checkbox("VSync", &vsync);
-	ImGui::Checkbox("Frustum Culling", &Mesh::frustum);
-	ImGui::DragFloat("Sensetivity", &sensitivity, 1.0f, 10.0f, 100.0f);
-	if (ImGui::DragFloat3("light dir", &vcbuffer.lightDir, 0.01f))
-		vcbuffer.lightDir.Normalize();
-	ImGui::SliderInt("mode", &pcbuffer.mode, 0, 5);
-	ImGui::Checkbox("Normal Mapping", reinterpret_cast<bool*>(&pcbuffer.normalMapping));
-	vcbuffer.cameraPos = camera.transform.position;
-	ImGui::End();
-	ImGui::Begin("Inspector");
-	if (ImGui::BeginTabBar("Transform"))
-	{
-		if (ImGui::BeginTabItem("Camera"))
-		{
-			ImGui::DragFloat3("position", &camera.transform.position, 0.01f);
-			ImGui::DragFloat3("target", &target, 0.01f);
-			ImGui::SliderAngle("x", &camera.transform.rotation.x);
-			ImGui::SliderAngle("y", &camera.transform.rotation.y);
-			ImGui::SliderAngle("z", &camera.transform.rotation.z);
-			ImGui::SliderAngle("fov", &camera.fov, 0.0f);
-			ImGui::DragFloat("aspect", &camera.aspect, 0.01f);
-			ImGui::DragFloat("near", &camera.near, 0.01f);
-			ImGui::DragFloat("far", &camera.far, 0.01f);
-			ImGui::EndTabItem();
-		}
-		if (ImGui::BeginTabItem("Model"))
-		{
-			ImGui::DragFloat3("position", &model.transform.position, 0.01f);
-			ImGui::SliderAngle("x", &model.transform.rotation.x);
-			ImGui::SliderAngle("y", &model.transform.rotation.y);
-			ImGui::SliderAngle("z", &model.transform.rotation.z);
-			ImGui::DragFloat3("scale", &model.transform.scale, 0.01f);
-			ImGui::EndTabItem();
-		}
-		if (ImGui::BeginTabItem("Mesh"))
-		{
-			ImGui::DragFloat3("position", &mesh->transform.position, 0.01f);
-			ImGui::SliderAngle("x", &mesh->transform.rotation.x);
-			ImGui::SliderAngle("y", &mesh->transform.rotation.y);
-			ImGui::SliderAngle("z", &mesh->transform.rotation.z);
-			ImGui::DragFloat3("scale", &mesh->transform.scale, 0.01f);
-			ImGui::EndTabItem();
-		}
-		ImGui::EndTabBar();
-	}
-	ImGui::End();
-	ImGui::Begin("Resources");
-	if (ImGui::BeginTabBar("Resources"))
-	{
-		if (ImGui::BeginTabItem("Materials"))
-		{
-			static const char* preview = ResourceManager::MaterialsBegin()->first.c_str();
-			if (ImGui::BeginCombo("Material", preview))
-			{
-				unsigned int i = 0;
-				for (auto mat = ResourceManager::MaterialsBegin(); mat != ResourceManager::MaterialsEnd(); ++mat)
-					if (ImGui::Selectable(mat->first.c_str()))
-						preview = mat->first.c_str();
-				ImGui::EndCombo();
-			}
-			ImGui::Image(ResourceManager::GetMaterial(preview)->GetDiffuse(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
-			ImGui::SameLine(0.0f, 0.0f);
-			ImGui::Image(ResourceManager::GetMaterial(preview)->GetNormals(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
-			ImGui::Image(ResourceManager::GetMaterial(preview)->GetSpecular(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
-			ImGui::EndTabItem();
-		}
-		if (ImGui::BeginTabItem("Meshes"))
-		{
-			static const char* preview = ResourceManager::MeshesBegin()->first.c_str();
-			if (ImGui::BeginCombo("Mesh", preview))
-			{
-				unsigned int i = 0;
-				for (auto mesh = ResourceManager::MeshesBegin(); mesh != ResourceManager::MeshesEnd(); ++mesh)
-					if (ImGui::Selectable(mesh->first.c_str()))
-						preview = mesh->first.c_str();
-				ImGui::EndCombo();
-			}
-			ImGui::EndTabItem();
-		}
-		ImGui::EndTabBar();
-	}
-	ImGui::End();
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, { 0.0f, 0.0f, 0.0f, 0.0f });
+	ImGui::DockSpaceOverViewport();
+	ImGui::PopStyleColor();
 
-	ImGui::Begin("Hierarchy");
-	ImGui::Columns(2);
-	static Node* selected = &model;
-	auto hy = [&](auto& self, Node* node) -> void
+	if (settings)
+	{
+		ImGui::Begin("Settings", &settings, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::Text("FPS: %f", io.Framerate);
+		ImGui::Checkbox("VSync", &vsync);
+		ImGui::Checkbox("Frustum Culling", &Mesh::frustum);
+		ImGui::DragFloat("Sensetivity", &sensitivity, 1.0f, 10.0f, 100.0f);
+		if (ImGui::DragFloat3("light dir", &vcbuffer.lightDir, 0.01f))
+			vcbuffer.lightDir.Normalize();
+		ImGui::SliderInt("mode", &pcbuffer.mode, 0, 5);
+		ImGui::Checkbox("Normal Mapping", reinterpret_cast<bool*>(&pcbuffer.normalMapping));
+		vcbuffer.cameraPos = camera.transform.position;
+		if (ImGui::BeginTabBar("Resources"))
 		{
-			if (ImGui::TreeNodeEx(node->name.c_str(), node->children.size() == 0u ? ImGuiTreeNodeFlags_Leaf : 0u))
+			if (ImGui::BeginTabItem("Materials"))
 			{
-				if (ImGui::IsItemActivated())
+				static const char* preview = ResourceManager::MaterialsBegin()->first.c_str();
+				if (ImGui::BeginCombo("Material", preview))
+				{
+					unsigned int i = 0;
+					for (auto mat = ResourceManager::MaterialsBegin(); mat != ResourceManager::MaterialsEnd(); ++mat)
+						if (ImGui::Selectable(mat->first.c_str()))
+							preview = mat->first.c_str();
+					ImGui::EndCombo();
+				}
+				ImGui::Image(ResourceManager::GetMaterial(preview)->GetDiffuse(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
+				ImGui::SameLine(0.0f, 0.0f);
+				ImGui::Image(ResourceManager::GetMaterial(preview)->GetNormals(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
+				ImGui::Image(ResourceManager::GetMaterial(preview)->GetSpecular(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
+				ImGui::EndTabItem();
+			}
+			if (ImGui::BeginTabItem("Meshes"))
+			{
+				static const char* preview = ResourceManager::MeshesBegin()->first.c_str();
+				if (ImGui::BeginCombo("Mesh", preview))
+				{
+					unsigned int i = 0;
+					for (auto mesh = ResourceManager::MeshesBegin(); mesh != ResourceManager::MeshesEnd(); ++mesh)
+						if (ImGui::Selectable(mesh->first.c_str()))
+							preview = mesh->first.c_str();
+					ImGui::EndCombo();
+				}
+				ImGui::EndTabItem();
+			}
+			ImGui::EndTabBar();
+		}
+		ImGui::End();
+	}
+	else
+	{
+		ImGui::Begin("Hierarchy");
+		static Node* selected = &model;
+		auto hy = [&](auto& self, Node* node) -> void
+			{
+				bool expanded = ImGui::TreeNodeEx(node->name.c_str(), ImGuiTreeNodeFlags_OpenOnArrow | (node->children.size() == 0u ? ImGuiTreeNodeFlags_Leaf : 0u) | (node == selected ? ImGuiTreeNodeFlags_Selected : 0u));
+				if (ImGui::IsItemClicked())
 					selected = node;
-				for (auto* child : node->children)
-					self(self, child);
-				ImGui::TreePop();
-			}
-		};
-	hy(hy, &model);
-	ImGui::NextColumn();
-	ImGui::DragFloat3("position", &selected->transform.position, 0.01f);
-	ImGui::SliderAngle("x", &selected->transform.rotation.x);
-	ImGui::SliderAngle("y", &selected->transform.rotation.y);
-	ImGui::SliderAngle("z", &selected->transform.rotation.z);
-	ImGui::DragFloat3("scale", &selected->transform.scale, 0.01f);
-	ImGui::End();
+				if (expanded)
+				{
+					for (auto* child : node->children)
+						self(self, child);
+					ImGui::TreePop();
+				}
+			};
+		hy(hy, &model);
+		ImGui::End();
 
-	ImGui::ShowDemoWindow();
-
-	if (window.ShouldClose() or Input::GetKey(Input::Key::Key_Escape))
-		window.Close();
+		ImGui::Begin("Inspector");
+		ImGui::DragFloat3("position", &selected->transform.position, 0.01f);
+		ImGui::SliderAngle("x", &selected->transform.rotation.x);
+		ImGui::SliderAngle("y", &selected->transform.rotation.y);
+		ImGui::SliderAngle("z", &selected->transform.rotation.z);
+		ImGui::DragFloat3("scale", &selected->transform.scale, 0.01f);
+		ImGui::End();
+	}
 
 	Renderer::UpdateConstantBuffer(pcb, &pcbuffer, sizeof(pcbuffer));
 	Renderer::UpdateConstantBuffer(vcb, &vcbuffer, sizeof(vcbuffer));

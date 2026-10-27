@@ -31,8 +31,10 @@ private:
 	std::string viewPreview;
 	unsigned char view = 0;
 	float sensitivity = 75.0f;
-	Model model = Model("../../../res/Models/DamagedHelmet.gltf");
+	bool settings = false;
+	//Model model = Model("../../../res/Models/DamagedHelmet.gltf");
 	//Model model = Model("../../../res/Models/Sponza.gltf");
+	Model model = Model("../../../res/Models/ABeautifulGame.gltf");
 	Mesh* mesh = Mesh::Plane();
 	Camera camera;
 	struct alignas(16)

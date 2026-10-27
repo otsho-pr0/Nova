@@ -27,7 +27,9 @@ float4 main(VSOutput i) : SV_Target
 	{
 		float4 diff = diffuse.Sample(ss, i.vTexCoord);
 		clip(diff.a - 0.9f);
-		float3 N = normalMapping ? normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f) : float3(0.0f, 0.0f, 1.0f);
+		float3 sample = normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f);
+		sample.y = -sample.y;
+		float3 N = normalMapping ? sample : float3(0.0f, 0.0f, 1.0f);
 		float3 L = normalize(-i.vLightDir);
 		float3 V = normalize(i.vCameraDir);
 		float3 H = normalize(L + V);
@@ -39,7 +41,9 @@ float4 main(VSOutput i) : SV_Target
 	} break;
 	case 2:
 	{
-		float3 N = normalMapping ? normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f) : float3(0.0f, 0.0f, 1.0f);
+		float3 sample = normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f);
+		sample.y = -sample.y;
+		float3 N = normalMapping ? sample : float3(0.0f, 0.0f, 1.0f);
 		float3 L = normalize(-i.vLightDir);
 		float3 V = normalize(i.vCameraDir);
 		float3 H = normalize(L + V);
@@ -51,8 +55,10 @@ float4 main(VSOutput i) : SV_Target
 	} break;
 	case 4:
 	{
-		float3 norm = normalMapping ? mul(normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f), float3x3(i.vTangent, i.vBiTangent, i.vNormal)) : i.vNormal;
-		return float4(norm * 0.5f + 0.5f, 1.0f);
+		float3 sample = normalize(normals.Sample(ss, i.vTexCoord).xyz * 2.0f - 1.0f);
+		sample.y = -sample.y;
+		float3 N = mul(normalMapping ? sample : float3(0.0f, 0.0f, 1.0f), float3x3(i.vTangent, i.vBiTangent, i.vNormal));
+		return float4(N * 0.5f + 0.5f, 1.0f);
 	} break;
 	}
 	
