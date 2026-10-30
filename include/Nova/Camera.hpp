@@ -1,16 +1,14 @@
 #pragma once
 
-#include <Nova/Transform.hpp>
+#include <Nova/Node.hpp>
 
-class Camera
+class Camera : public Node
 {
 public:
-	Transform transform;
-
 	float fov;
 	float aspect;
 	float near;
 	float far;
 
-	void Update();
+	void Update(Matrix parent = Matrix(1.0f)) override;
 };

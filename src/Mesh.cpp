@@ -7,18 +7,16 @@
 extern Material* mat;
 
 void* Mesh::mCB;
-bool Mesh::frustum = true;
+bool MeshInstance::frustum = true;
 
-Mesh::Mesh(Vertex* vertices, size_t vSize, unsigned int* indices, size_t iSize) :
-	material(mat)
+Mesh::Mesh(Vertex* vertices, size_t vSize, unsigned int* indices, size_t iSize)
 {
 	mVB = Renderer::CreateVertexBuffer(vertices, vSize);
 	mIB = Renderer::CreateIndexBuffer(indices, iSize);
 	mCount = iSize / sizeof(unsigned int);
 }
 
-Mesh::Mesh(void* vb, void* ib, size_t count) :
-	material(mat)
+Mesh::Mesh(void* vb, void* ib, size_t count)
 {
 	mVB = vb;
 	mIB = ib;
@@ -101,15 +99,21 @@ Mesh* Mesh::Plane()
 	return r;
 }
 
-void Mesh::Draw(Matrix parent)
+MeshInstance::MeshInstance(Mesh* mesh) :
+	mesh(mesh),
+	material(mat)
+{
+}
+
+void MeshInstance::Draw()
 {
 	struct
 	{
 		Matrix projection;
 		Matrix view;
 		Matrix model;
-	} cbuffer = { Transform::projection, Transform::view, parent * transform };
-	Renderer::UpdateConstantBuffer(mCB, &cbuffer, sizeof(cbuffer));
+	} cbuffer = { Transform::projection, Transform::view, mParent * transform };
+	Renderer::UpdateConstantBuffer(mesh->mCB, &cbuffer, sizeof(cbuffer));
 
 	/*
 		Left: row 4 + row 1
@@ -120,21 +124,20 @@ void Mesh::Draw(Matrix parent)
 		far: row 4 - row 3
 	*/
 
-	//if (frustum)
+	if (frustum)
 	{
-		Matrix MVP = Transform::projection * Transform::view * (parent * transform);
+		Matrix MVP = Transform::projection * Transform::view * (mParent * transform);
 		Vector4 corners[8] =
 		{
-			MVP * Vector4{ aabb.min.x, aabb.min.y, aabb.min.z, 1.0f },
-			MVP * Vector4{ aabb.max.x, aabb.min.y, aabb.min.z, 1.0f },
-			MVP * Vector4{ aabb.min.x, aabb.max.y, aabb.min.z, 1.0f },
-			MVP * Vector4{ aabb.min.x, aabb.min.y, aabb.max.z, 1.0f },
-			MVP * Vector4{ aabb.max.x, aabb.max.y, aabb.max.z, 1.0f },
-			MVP * Vector4{ aabb.min.x, aabb.max.y, aabb.max.z, 1.0f },
-			MVP * Vector4{ aabb.max.x, aabb.min.y, aabb.max.z, 1.0f },
-			MVP * Vector4{ aabb.max.x, aabb.max.y, aabb.min.z, 1.0f }
+			MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.min.y, mesh->aabb.min.z, 1.0f },
+			MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.min.y, mesh->aabb.min.z, 1.0f },
+			MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.max.y, mesh->aabb.min.z, 1.0f },
+			MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.min.y, mesh->aabb.max.z, 1.0f },
+			MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.max.y, mesh->aabb.max.z, 1.0f },
+			MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.max.y, mesh->aabb.max.z, 1.0f },
+			MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.min.y, mesh->aabb.max.z, 1.0f },
+			MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.max.y, mesh->aabb.min.z, 1.0f }
 		};
-
 		
 		bool outLeft = true;
 		for (auto& corner : corners) if (corner.x >= -corner.w) { outLeft = false; break; };
@@ -171,9 +174,9 @@ void Mesh::Draw(Matrix parent)
 		//		Renderer::DrawPoint({ corner.x / corner.w, corner.y / corner.w }, Transform::projection[1][1] / Transform::projection[0][0]);
 	}
 
-	Renderer::BindVertexBuffer(mVB, sizeof(Vertex), 0u);
-	Renderer::BindIndexBuffer(mIB);
-	Renderer::BindVSConstantBuffer(mCB, 0u);
+	Renderer::BindVertexBuffer(mesh->mVB, sizeof(Vertex), 0u);
+	Renderer::BindIndexBuffer(mesh->mIB);
+	Renderer::BindVSConstantBuffer(mesh->mCB, 0u);
 	material->Bind();
-	Renderer::DrawIndexed(mCount);
+	Renderer::DrawIndexed(mesh->mCount);
 }

@@ -8,7 +8,7 @@
 
 #include <filesystem>
 
-void ProcessNodes(const char* path, std::filesystem::path current, Node* root, const aiScene* scene, aiNode* node)
+void ProcessNodes(const char* path, std::filesystem::path current, MeshInstance** meshes, Node* root, const aiScene* scene, aiNode* node)
 {
 	root->name = node->mName.C_Str();
 	static std::unordered_map<unsigned int, std::string> materials;
@@ -20,10 +20,10 @@ void ProcessNodes(const char* path, std::filesystem::path current, Node* root, c
 	{
 		const aiMesh* mesh = scene->mMeshes[node->mMeshes[m]];
 
-		Mesh* mMesh;
+		MeshInstance* mMesh;
 
 		if (ResourceManager::HasMesh(mesh->mName.C_Str()))
-			mMesh = dynamic_cast<Mesh*>(root->children.emplace_back(ResourceManager::GetMesh(mesh->mName.C_Str())));
+			mMesh = reinterpret_cast<MeshInstance*>(root->children.emplace_back(new MeshInstance(ResourceManager::GetMesh(mesh->mName.C_Str()))));
 		else
 		{
 			Vertex* vertices = new Vertex[mesh->mNumVertices];
@@ -44,7 +44,7 @@ void ProcessNodes(const char* path, std::filesystem::path current, Node* root, c
 				indices[i * 3 + 2] = mesh->mFaces[i].mIndices[2];
 			}
 
-			mMesh = dynamic_cast<Mesh*>(root->children.emplace_back(ResourceManager::CreateMesh(mesh->mName.C_Str(), vertices, sizeof(Vertex) * mesh->mNumVertices, indices, sizeof(unsigned int) * mesh->mNumFaces * 3)));
+			mMesh = reinterpret_cast<MeshInstance*>(root->children.emplace_back(new MeshInstance(ResourceManager::CreateMesh(mesh->mName.C_Str(), vertices, sizeof(Vertex) * mesh->mNumVertices, indices, sizeof(unsigned int) * mesh->mNumFaces * 3))));
 
 			delete[] vertices;
 			delete[] indices;
@@ -67,14 +67,16 @@ void ProcessNodes(const char* path, std::filesystem::path current, Node* root, c
 			mMesh->material = ResourceManager::CreateMaterial(materials[mesh->mMaterialIndex], (current / diffuse.C_Str()).string().c_str(), (current / normals.C_Str()).string().c_str(), (current / specular.C_Str()).string().c_str());
 		}
 
-		mMesh->aabb.min = { mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z };
-		mMesh->aabb.max = { mesh->mAABB.mMax.x, mesh->mAABB.mMax.y, mesh->mAABB.mMax.z };
+		mMesh->mesh->aabb.min = { mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z };
+		mMesh->mesh->aabb.max = { mesh->mAABB.mMax.x, mesh->mAABB.mMax.y, mesh->mAABB.mMax.z };
 
 		mMesh->transform = { { position.x, position.y, position.z }, { rotation.x, rotation.y, rotation.z }, { scale.x, scale.y, scale.z } };
+
+		meshes[node->mMeshes[m]] = mMesh;
 	}
 
 	for (unsigned int c = 0u; c < node->mNumChildren; c++)
-		ProcessNodes(path, current, root->children.emplace_back(new Node), scene, node->mChildren[c]);
+		ProcessNodes(path, current, meshes, root->children.emplace_back(new Node), scene, node->mChildren[c]);
 }
 
 Model::Model(const char* path)
@@ -82,6 +84,14 @@ Model::Model(const char* path)
 	Assimp::Importer importer;
 	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipWindingOrder | aiProcess_MakeLeftHanded | aiProcess_FlipUVs | aiProcess_GenBoundingBoxes | aiProcess_CalcTangentSpace);
 	std::filesystem::path current = std::filesystem::path(path).parent_path();
+	mMeshes = new MeshInstance*[scene->mNumMeshes];
+	mNumMeshes = scene->mNumMeshes;
 
-	ProcessNodes(path, current, this, scene, scene->mRootNode);
+	ProcessNodes(path, current, mMeshes, this, scene, scene->mRootNode);
+}
+
+void Model::Draw()
+{
+	for (unsigned int m = 0; m < mNumMeshes; m++)
+		mMeshes[m]->Draw();
 }

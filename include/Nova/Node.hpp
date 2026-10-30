@@ -10,8 +10,11 @@ public:
 	Transform transform;
 	std::string name;
 
-	virtual void Draw(Matrix parent = Matrix(1.0f));
+	virtual void Update(Matrix parent = Matrix(1.0f));
 
 	Node* parent = nullptr;
 	std::vector<Node*> children;
+
+protected:
+	Matrix mParent;
 };

@@ -1,7 +1,9 @@
 #include <Nova/Node.hpp>
 
-void Node::Draw(Matrix parent)
+void Node::Update(Matrix parent)
 {
+	transform.Update();
+	mParent = parent;
 	for (auto& child : children)
-		child->Draw(parent * transform);
+		child->Update(parent * transform);
 }

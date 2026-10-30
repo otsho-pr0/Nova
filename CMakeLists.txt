@@ -23,6 +23,10 @@ target_include_directories(Nova PRIVATE thirdparty/stb/)
 target_include_directories(Nova PRIVATE thirdparty/imgui/ thirdparty/imgui/backends)
 target_include_directories(Nova PUBLIC include/)
 target_link_libraries(Nova PUBLIC dxgi d3d11 d3dcompiler dwmapi assimp)
+target_compile_options(Nova PUBLIC
+    $<$<CXX_COMPILER_ID:MSVC>:/GR->
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-fno-rtti>
+)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug") 
     add_compile_definitions(DEBUG) 

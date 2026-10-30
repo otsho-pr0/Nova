@@ -6,6 +6,7 @@
 #include <imgui_impl_dx11.h>
 
 #include <iostream>
+#include <sstream>
 
 extern IMGUI_IMPL_API __int64 ImGui_ImplWin32_WndProcHandler(struct HWND__* hWnd, unsigned int msg, unsigned long long wParam, long long lParam);
 
@@ -33,7 +34,6 @@ App::App()
 	vcbuffer = { Vector3(0.4f, -1.5f, 0.7f).Normalize(), camera.transform.Basis() * Vector3::Forward };
 	Renderer::UpdateConstantBuffer(pcb, &pcbuffer, sizeof(pcbuffer));
 	Renderer::UpdateConstantBuffer(vcb, &vcbuffer, sizeof(vcbuffer));
-	mesh->transform.scale = 5.0f;
 
 	ImGui::GetStyle().ScrollbarSize = 0.0f;
 	ImGui::GetStyle().Colors[ImGuiCol_DockingEmptyBg] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -41,6 +41,8 @@ App::App()
 	ImGui::GetStyle().DockingSeparatorSize = 1u;
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
+	camera.name = "Camera";
+	model.children.emplace_back(&camera);
 	Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
 }
 
@@ -92,7 +94,7 @@ void App::Update()
 	}
 
 	Vector3 direction = Vector3(Input::GetAxis(Input::Key::Key_D, Input::Key::Key_Q), Input::GetAxis(Input::Key::Key_E, Input::Key::Key_A), Input::GetAxis(Input::Key::Key_Z, Input::Key::Key_S)).Normalize();
-	camera.transform.position += camera.transform.Basis() * direction * Time::DeltaTime();
+	camera.transform.position += camera.transform.Basis() * direction * Time::DeltaTime() * speed;
 
 	ImGui_ImplWin32_NewFrame();
 	ImGui_ImplDX11_NewFrame();
@@ -107,7 +109,8 @@ void App::Update()
 		ImGui::Begin("Settings", &settings, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize);
 		ImGui::Text("FPS: %f", io.Framerate);
 		ImGui::Checkbox("VSync", &vsync);
-		ImGui::Checkbox("Frustum Culling", &Mesh::frustum);
+		ImGui::Checkbox("Frustum Culling", &MeshInstance::frustum);
+		ImGui::SliderFloat("Speed", &speed, 0.0f, 2.0f);
 		ImGui::DragFloat("Sensetivity", &sensitivity, 1.0f, 10.0f, 100.0f);
 		if (ImGui::DragFloat3("light dir", &vcbuffer.lightDir, 0.01f))
 			vcbuffer.lightDir.Normalize();
@@ -156,7 +159,10 @@ void App::Update()
 		static Node* selected = &model;
 		auto hy = [&](auto& self, Node* node) -> void
 			{
-				bool expanded = ImGui::TreeNodeEx(node->name.c_str(), ImGuiTreeNodeFlags_OpenOnArrow | (node->children.size() == 0u ? ImGuiTreeNodeFlags_Leaf : 0u) | (node == selected ? ImGuiTreeNodeFlags_Selected : 0u));
+				std::stringstream name;
+				name << node->name;
+
+				bool expanded = ImGui::TreeNodeEx(name.str().c_str(), ImGuiTreeNodeFlags_OpenOnArrow | (node->children.size() == 0u ? ImGuiTreeNodeFlags_Leaf : 0u) | (node == selected ? ImGuiTreeNodeFlags_Selected : 0u));
 				if (ImGui::IsItemClicked())
 					selected = node;
 				if (expanded)
@@ -183,13 +189,14 @@ void App::Update()
 	camera.Update();
 	Renderer::BindPSConstantBuffer(pcb, 0u);
 	Renderer::BindVSConstantBuffer(vcb, 1u);
+
+	model.Update();
 }
 
 void App::Render()
 {
 	context.Clear({ 0.0f, 0.0f, 0.0f, 1.0f });
 	model.Draw();
-	//mesh->Draw();
 	ImGui::Render();
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 	context.SwapBuffers(vsync);

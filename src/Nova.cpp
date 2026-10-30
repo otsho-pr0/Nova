@@ -57,7 +57,7 @@ void Nova::Init()
 
 	int width, height, channels;
 	void* data = stbi_load("../../../res/TextureLess.jpg", &width, &height, &channels, 4);
-	tex = Renderer::CreateTexture(data, width, height, channels);
+	tex = Renderer::CreateTextureWithMipmapping(data, width, height, channels);
 	stbi_image_free(data);
 	mat = ResourceManager::CreateMaterial("default", "../../../res/Checker.jpg", "../../../res/CheckerNormals.jpg", "");
 
