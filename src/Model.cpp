@@ -82,7 +82,7 @@ void ProcessNodes(const char* path, std::filesystem::path current, MeshInstance*
 Model::Model(const char* path)
 {
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipWindingOrder | aiProcess_MakeLeftHanded | aiProcess_FlipUVs | aiProcess_GenBoundingBoxes | aiProcess_CalcTangentSpace);
+	const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipWindingOrder | aiProcess_MakeLeftHanded | aiProcess_FlipUVs | aiProcess_GenBoundingBoxes | aiProcess_CalcTangentSpace | aiProcess_OptimizeGraph);
 	std::filesystem::path current = std::filesystem::path(path).parent_path();
 	mMeshes = new MeshInstance*[scene->mNumMeshes];
 	mNumMeshes = scene->mNumMeshes;

@@ -57,6 +57,9 @@ namespace Renderer
 	void DrawIndexed(unsigned int numIndices);
 
 	void DrawPoint(float2 coord, float aspect);
+
+	void* GetDevice();
+	void* GetContext();
 };
 
 class RendererContext

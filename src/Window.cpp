@@ -1,9 +1,6 @@
 #include <Nova/Window.hpp>
 #include <Nova/Windows.hpp>
 
-#include <imgui_impl_win32.h>
-#include <imgui.h>
-
 extern unsigned char keyboard[256];
 extern unsigned char mouse[3];
 extern long mouseDeltaX;
@@ -106,8 +103,6 @@ Window::Window(const wchar_t* title, long width, long height) :
 	rid.usUsage = 0x02;
 	rid.hwndTarget = data->mHWnd;
 	RegisterRawInputDevices(&rid, 1u, sizeof(rid));
-
-	ImGui_ImplWin32_Init(data->mHWnd);
 }
 
 Window::~Window()

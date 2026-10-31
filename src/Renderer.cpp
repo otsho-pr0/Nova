@@ -1,8 +1,6 @@
 #include <Nova/Renderer.hpp>
 #include <Nova/Window.hpp>
 
-#include <imgui_impl_dx11.h>
-
 #include <dxgi.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
@@ -312,6 +310,16 @@ void Renderer::DrawPoint(float2 coord, float aspect)
 	context->PSSetShader(pPS, nullptr, 0u);
 }
 
+void* Renderer::GetDevice()
+{
+	return device;
+}
+
+void* Renderer::GetContext()
+{
+    return context;
+}
+
 RendererContext::RendererContext(Window& window) :
 	mWindow(window)
 {
@@ -352,14 +360,11 @@ RendererContext::RendererContext(Window& window) :
 	dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
 	device->CreateDepthStencilState(&dsd, reinterpret_cast<ID3D11DepthStencilState**>(&mDepthStencilState));
 
-	D3D11_VIEWPORT;
 	mViewport = { .Width = static_cast<float>(mWindow.GetSize().x), .Height = static_cast<float>(mWindow.GetSize().y), .MinDepth = 0.0f, .MaxDepth = 1.0f};
 
 	context->OMSetRenderTargets(1u, reinterpret_cast<ID3D11RenderTargetView**>(&mRenderTargetView), reinterpret_cast<ID3D11DepthStencilView*>(mDepthStencilView));
 	context->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState*>(mDepthStencilState), 0u);
 	context->RSSetViewports(1u, reinterpret_cast<D3D11_VIEWPORT*>(&mViewport));
-
-	ImGui_ImplDX11_Init(device, context);
 
 	void* il = Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
 	Renderer::BindInputLayout(il);

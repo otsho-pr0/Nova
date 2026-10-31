@@ -34,8 +34,8 @@ private:
 	float speed = 1.0f;
 	bool settings = false;
 	//Model model = Model("../../../res/Models/DamagedHelmet.gltf");
-	//Model model = Model("../../../res/Models/Sponza.gltf");
-	Model model = Model("../../../res/Models/ABeautifulGame.gltf");
+	Model model = Model("../../../res/Models/Sponza.gltf");
+	//Model model = Model("../../../res/Models/ABeautifulGame.gltf");
 	//Model model = Model("../../../res/Models/SciFiHelmet.gltf");
 	Mesh* mesh = Mesh::Plane();
 	Camera camera;

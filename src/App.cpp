@@ -41,9 +41,12 @@ App::App()
 	ImGui::GetStyle().DockingSeparatorSize = 1u;
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-	camera.name = "Camera";
+	//camera.name = "Camera";
 	model.children.emplace_back(&camera);
 	Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
+
+	ImGui_ImplWin32_Init(window.GetHandle());
+	ImGui_ImplDX11_Init(reinterpret_cast<ID3D11Device*>(Renderer::GetDevice()), reinterpret_cast<ID3D11DeviceContext*>(Renderer::GetContext()));
 }
 
 void App::Run()
