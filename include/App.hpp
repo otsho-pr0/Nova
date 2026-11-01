@@ -23,7 +23,7 @@ private:
 	void Render();
 
 	Window window = { L"Nova", 1034, 600 };
-	RendererContext context = window;
+	DeferredContext context = window;
 
 	bool vsync = true;
 	std::string controlPreview;
@@ -33,24 +33,18 @@ private:
 	float sensitivity = 75.0f;
 	float speed = 1.0f;
 	bool settings = false;
-	//Model model = Model("../../../res/Models/DamagedHelmet.gltf");
-	Model model = Model("../../../res/Models/Sponza.gltf");
-	//Model model = Model("../../../res/Models/ABeautifulGame.gltf");
-	//Model model = Model("../../../res/Models/SciFiHelmet.gltf");
-	Mesh* mesh = Mesh::Plane();
+	//Model model = Model("../../../res/Models/DamagedHelmet/DamagedHelmet.gltf");
+	Model model = Model("../../../res/Models/Sponza/Sponza.gltf");
 	Camera camera;
 	struct alignas(16)
 	{
 		int mode;
 		int normalMapping;
-	} pcbuffer;
-
-	struct alignas(16)
-	{
+		int emission;
 		alignas(16) Vector3 lightDir;
 		alignas(16) Vector3 cameraPos;
-	} vcbuffer;
+	} pcbuffer;
+
 	ImGuiIO& io = ImGui::GetIO();
 	void* pcb = Renderer::CreateConstantBuffer(sizeof(pcbuffer));
-	void* vcb = Renderer::CreateConstantBuffer(sizeof(vcbuffer));
 };

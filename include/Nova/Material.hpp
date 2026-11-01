@@ -5,16 +5,18 @@ class Material
 public:
 	void* GetDiffuse();
 	void* GetNormals();
-	void* GetSpecular();
+	void* GetEmissive();
 	void Bind();
 
 private:
-	Material(const char* diffuse, const char* normals, const char* specular);
+	Material(const char* diffuse, const char* normals, const char* emissive);
 	~Material();
 
 	friend class ResourceManager;
 
 	void* mDiffuse = nullptr;
 	void* mNormals = nullptr;
-	void* mSpecular = nullptr;
+	void* mRoughness = nullptr;
+	void* mMetalness = nullptr;
+	void* mEmissive = nullptr;
 };

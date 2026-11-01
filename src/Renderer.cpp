@@ -12,6 +12,9 @@ ID3D11DeviceContext* context;
 ID3D11InfoQueue* infoQueue;
 
 extern void* tex;
+extern void* mVS;
+extern void* mPS;
+extern void* mIL;
 
 void* Renderer::CreateVertexBuffer(void* vertices, size_t size)
 {
@@ -89,7 +92,7 @@ void* Renderer::CreateConstantBuffer(size_t size)
 	return cBuffer;
 }
 
-void* Renderer::CreateTexture(void* data, unsigned int width, unsigned int height, unsigned int channels)
+void* Renderer::CreateTexture(void* data, unsigned int width, unsigned int height, unsigned int channels, bool srgb)
 {
 	if (data)
 	{
@@ -98,7 +101,7 @@ void* Renderer::CreateTexture(void* data, unsigned int width, unsigned int heigh
 		td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		td.ArraySize = 1u;
 		td.MipLevels = 1u;
-		td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		td.Format = srgb ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
 		td.SampleDesc.Count = 1u;
 		td.Width = width;
 		td.Height = height;
@@ -119,7 +122,7 @@ void* Renderer::CreateTexture(void* data, unsigned int width, unsigned int heigh
 	return tex;
 }
 
-void* Renderer::CreateTextureWithMipmapping(void* data, unsigned int width, unsigned int height, unsigned int channels)
+void* Renderer::CreateTextureWithMipmapping(void* data, unsigned int width, unsigned int height, unsigned int channels, bool srgb)
 {
 	if (data)
 	{
@@ -128,7 +131,7 @@ void* Renderer::CreateTextureWithMipmapping(void* data, unsigned int width, unsi
 		td.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 		td.ArraySize = 1u;
 		td.MipLevels = 0u;
-		td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		td.Format = srgb ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
 		td.SampleDesc.Count = 1u;
 		td.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 		td.Width = width;
@@ -170,9 +173,9 @@ void* Renderer::CreateInputLayout(const wchar_t* path)
 
 	D3D11_INPUT_ELEMENT_DESC* ied = new D3D11_INPUT_ELEMENT_DESC[numElements]{};
 
+	UINT offset = 0u;
 	for (unsigned int i = 0u; i < numElements; i++)
 	{
-		static UINT offset = 0u;
 		D3D11_SIGNATURE_PARAMETER_DESC spd;
 		sr->GetInputParameterDesc(i, &spd);
 		ied[i].SemanticName = spd.SemanticName;
@@ -366,8 +369,7 @@ RendererContext::RendererContext(Window& window) :
 	context->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState*>(mDepthStencilState), 0u);
 	context->RSSetViewports(1u, reinterpret_cast<D3D11_VIEWPORT*>(&mViewport));
 
-	void* il = Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
-	Renderer::BindInputLayout(il);
+	mIL = Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	ID3D11SamplerState* ss;
@@ -462,6 +464,219 @@ void RendererContext::SetFullscreenState(bool state)
 }
 
 bool RendererContext::GetFullscreenState()
+{
+	BOOL state;
+	reinterpret_cast<IDXGISwapChain*>(mSwapChain)->GetFullscreenState(&state, nullptr);
+	return state;
+}
+
+DeferredContext::DeferredContext(Window& window) :
+	mWindow(window)
+{
+	DXGI_SWAP_CHAIN_DESC scd = {};
+	scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	scd.BufferCount = 2u;
+	scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	scd.SampleDesc.Count = 1u;
+	scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	scd.Windowed = TRUE;
+	scd.OutputWindow = reinterpret_cast<HWND>(mWindow.GetHandle());
+	factory->CreateSwapChain(device, &scd, reinterpret_cast<IDXGISwapChain**>(&mSwapChain));
+
+	ID3D11Texture2D* backbuffer;
+	reinterpret_cast<IDXGISwapChain*>(mSwapChain)->GetBuffer(0u, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backbuffer));
+	device->CreateRenderTargetView(backbuffer, nullptr, reinterpret_cast<ID3D11RenderTargetView**>(&mRenderTargetView));
+	backbuffer->Release();
+
+	ID3D11Texture2D* albedo;
+	ID3D11Texture2D* normals;
+	ID3D11Texture2D* positions;
+	D3D11_TEXTURE2D_DESC td = {};
+	td.ArraySize = 1u;
+	td.MipLevels = 1u;
+	td.SampleDesc.Count = 1u;
+	td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	td.Width = window.GetSize().x;
+	td.Height = window.GetSize().y;
+	td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
+	srvd.Format = td.Format;
+	srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvd.Texture2D.MipLevels = 1u;
+	device->CreateTexture2D(&td, nullptr, &albedo);
+	device->CreateShaderResourceView(albedo, &srvd, reinterpret_cast<ID3D11ShaderResourceView**>(&mShaderResourceView[0]));
+	device->CreateRenderTargetView(albedo, nullptr, reinterpret_cast<ID3D11RenderTargetView**>(&mGBuffer[0]));
+	td.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	srvd.Format = td.Format;
+	device->CreateTexture2D(&td, nullptr, &normals);
+	device->CreateShaderResourceView(normals, &srvd, reinterpret_cast<ID3D11ShaderResourceView**>(&mShaderResourceView[1]));
+	device->CreateRenderTargetView(normals, nullptr, reinterpret_cast<ID3D11RenderTargetView**>(&mGBuffer[1]));
+	device->CreateTexture2D(&td, nullptr, &positions);
+	device->CreateShaderResourceView(positions, &srvd, reinterpret_cast<ID3D11ShaderResourceView**>(&mShaderResourceView[2]));
+	device->CreateRenderTargetView(positions, nullptr, reinterpret_cast<ID3D11RenderTargetView**>(&mGBuffer[2]));
+	albedo->Release();
+	normals->Release();
+	positions->Release();
+
+	ID3D11Texture2D* depthStencil;
+	td.Format = DXGI_FORMAT_D32_FLOAT;
+	td.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	device->CreateTexture2D(&td, nullptr, &depthStencil);
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsvd = {};
+	dsvd.Format = td.Format;
+	dsvd.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	device->CreateDepthStencilView(depthStencil, &dsvd, reinterpret_cast<ID3D11DepthStencilView**>(&mDepthStencilView));
+	depthStencil->Release();
+
+	D3D11_DEPTH_STENCIL_DESC dsd = {};
+	dsd.DepthEnable = TRUE;
+	dsd.DepthFunc = D3D11_COMPARISON_LESS;
+	dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	device->CreateDepthStencilState(&dsd, reinterpret_cast<ID3D11DepthStencilState**>(&mDepthStencilState));
+
+	mViewport = {.Width = static_cast<float>(mWindow.GetSize().x), .Height = static_cast<float>(mWindow.GetSize().y), .MinDepth = 0.0f, .MaxDepth = 1.0f};
+
+	context->OMSetRenderTargets(3u, reinterpret_cast<ID3D11RenderTargetView**>(&mGBuffer), reinterpret_cast<ID3D11DepthStencilView*>(mDepthStencilView));
+	context->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState*>(mDepthStencilState), 0u);
+	context->RSSetViewports(1u, reinterpret_cast<D3D11_VIEWPORT*>(&mViewport));
+
+	mIL = Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	ID3D11SamplerState* ss;
+	D3D11_SAMPLER_DESC sd = {};
+	//sd.Filter   = D3D11_FILTER_ANISOTROPIC;
+	sd.Filter   = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sd.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	sd.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sd.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	//sd.MaxAnisotropy = 1;
+	sd.MaxLOD = D3D11_FLOAT32_MAX;
+	device->CreateSamplerState(&sd, &ss);
+	context->PSSetSamplers(0u, 1u, &ss);
+
+	mVS = Renderer::CreateVertexShader(L"../../../res/VertexShader.hlsl");
+	mPS = Renderer::CreatePixelShader(L"../../../res/PixelShader.hlsl");
+}
+
+DeferredContext::~DeferredContext()
+{
+	reinterpret_cast<ID3D11RenderTargetView*>(mRenderTargetView)->Release();
+	reinterpret_cast<ID3D11DepthStencilView*>(mDepthStencilView)->Release();
+	reinterpret_cast<ID3D11DepthStencilState*>(mDepthStencilState)->Release();
+	reinterpret_cast<IDXGISwapChain*>(mSwapChain)->Release();
+}
+
+__int64 DeferredContext::PollEvents(void* hWnd, unsigned int msg, unsigned long long wParam, long long lParam)
+{
+	switch (msg)
+	{
+	case WM_SIZE:
+		if (mSwapChain)
+		{
+			unsigned int width = LOWORD(lParam);
+			unsigned int height = HIWORD(lParam);
+
+			context->OMSetRenderTargets(0u, nullptr, nullptr);
+			reinterpret_cast<ID3D11RenderTargetView*>(mGBuffer[0])->Release();
+			reinterpret_cast<ID3D11RenderTargetView*>(mGBuffer[1])->Release();
+			reinterpret_cast<ID3D11RenderTargetView*>(mGBuffer[2])->Release();
+			reinterpret_cast<ID3D11ShaderResourceView*>(mShaderResourceView[0])->Release();
+			reinterpret_cast<ID3D11ShaderResourceView*>(mShaderResourceView[1])->Release();
+			reinterpret_cast<ID3D11ShaderResourceView*>(mShaderResourceView[2])->Release();
+			reinterpret_cast<ID3D11RenderTargetView*>(mRenderTargetView)->Release();
+			reinterpret_cast<ID3D11DepthStencilView*>(mDepthStencilView)->Release();
+			reinterpret_cast<IDXGISwapChain*>(mSwapChain)->ResizeBuffers(2u, width, height, DXGI_FORMAT_UNKNOWN, 0u);
+
+			ID3D11Texture2D* backbuffer;
+			reinterpret_cast<IDXGISwapChain*>(mSwapChain)->GetBuffer(0u, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backbuffer));
+			device->CreateRenderTargetView(backbuffer, nullptr, reinterpret_cast<ID3D11RenderTargetView**>(&mRenderTargetView));
+			backbuffer->Release();
+
+			ID3D11Texture2D* albedo;
+			ID3D11Texture2D* normals;
+			ID3D11Texture2D* positions;
+			D3D11_TEXTURE2D_DESC td = {};
+			td.ArraySize = 1u;
+			td.MipLevels = 1u;
+			td.SampleDesc.Count = 1u;
+			td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+			td.Width = width;
+			td.Height = height;
+			td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvd = {};
+			srvd.Format = td.Format;
+			srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+			srvd.Texture2D.MipLevels = 1u;
+			device->CreateTexture2D(&td, nullptr, &albedo);
+			device->CreateShaderResourceView(albedo, &srvd, reinterpret_cast<ID3D11ShaderResourceView**>(&mShaderResourceView[0]));
+			device->CreateRenderTargetView(albedo, nullptr, reinterpret_cast<ID3D11RenderTargetView**>(&mGBuffer[0]));
+			td.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+			srvd.Format = td.Format;
+			device->CreateTexture2D(&td, nullptr, &normals);
+			device->CreateShaderResourceView(normals, &srvd, reinterpret_cast<ID3D11ShaderResourceView**>(&mShaderResourceView[1]));
+			device->CreateRenderTargetView(normals, nullptr, reinterpret_cast<ID3D11RenderTargetView**>(&mGBuffer[1]));
+			device->CreateTexture2D(&td, nullptr, &positions);
+			device->CreateShaderResourceView(positions, &srvd, reinterpret_cast<ID3D11ShaderResourceView**>(&mShaderResourceView[2]));
+			device->CreateRenderTargetView(positions, nullptr, reinterpret_cast<ID3D11RenderTargetView**>(&mGBuffer[2]));
+			albedo->Release();
+			normals->Release();
+			positions->Release();
+
+			ID3D11Texture2D* depthStencil;
+			td.Format = DXGI_FORMAT_D32_FLOAT;
+			td.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+			device->CreateTexture2D(&td, nullptr, &depthStencil);
+			D3D11_DEPTH_STENCIL_VIEW_DESC dsvd = {};
+			dsvd.Format = td.Format;
+			dsvd.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+			device->CreateDepthStencilView(depthStencil, &dsvd, reinterpret_cast<ID3D11DepthStencilView**>(&mDepthStencilView));
+			depthStencil->Release();
+
+			mViewport.Width = static_cast<float>(width);
+			mViewport.Height = static_cast<float>(height);
+
+			context->OMSetRenderTargets(3u, reinterpret_cast<ID3D11RenderTargetView**>(&mGBuffer), reinterpret_cast<ID3D11DepthStencilView*>(mDepthStencilView));
+			context->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState*>(mDepthStencilState), 0u);
+			context->RSSetViewports(1u, reinterpret_cast<D3D11_VIEWPORT*>(&mViewport));
+		}
+		break;
+	}
+
+	return 0;
+}
+
+void DeferredContext::Clear(const Color& color)
+{
+	context->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView*>(mGBuffer[0]), reinterpret_cast<const float*>(&color));
+	context->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView*>(mGBuffer[1]), reinterpret_cast<const float*>(&color));
+	context->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView*>(mGBuffer[2]), reinterpret_cast<const float*>(&color));
+	context->ClearRenderTargetView(reinterpret_cast<ID3D11RenderTargetView*>(mRenderTargetView), reinterpret_cast<const float*>(&color));
+	context->ClearDepthStencilView(reinterpret_cast<ID3D11DepthStencilView*>(mDepthStencilView), D3D11_CLEAR_DEPTH, 1.0f, 0u);
+}
+
+void** DeferredContext::GetThem()
+{
+	return mShaderResourceView;
+}
+
+void DeferredContext::Switch()
+{
+	context->OMSetRenderTargets(1u, reinterpret_cast<ID3D11RenderTargetView**>(&mRenderTargetView), reinterpret_cast<ID3D11DepthStencilView*>(mDepthStencilView));
+}
+
+void DeferredContext::SwapBuffers(unsigned int interval)
+{
+	reinterpret_cast<IDXGISwapChain*>(mSwapChain)->Present(interval, 0u);
+	context->OMSetRenderTargets(3u, reinterpret_cast<ID3D11RenderTargetView**>(&mGBuffer), reinterpret_cast<ID3D11DepthStencilView*>(mDepthStencilView));
+}
+
+void DeferredContext::SetFullscreenState(bool state)
+{
+	reinterpret_cast<IDXGISwapChain*>(mSwapChain)->SetFullscreenState(state, nullptr);
+}
+
+bool DeferredContext::GetFullscreenState()
 {
 	BOOL state;
 	reinterpret_cast<IDXGISwapChain*>(mSwapChain)->GetFullscreenState(&state, nullptr);

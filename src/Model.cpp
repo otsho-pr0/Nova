@@ -30,10 +30,15 @@ void ProcessNodes(const char* path, std::filesystem::path current, MeshInstance*
 			for (unsigned int v = 0u; v < mesh->mNumVertices; v++)
 			{
 				vertices[v].position = { mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z };
-				vertices[v].tanget = { mesh->mTangents[v].x, mesh->mTangents[v].y, mesh->mTangents[v].z };
-				vertices[v].biTanget = { mesh->mBitangents[v].x, mesh->mBitangents[v].y, mesh->mBitangents[v].z };
-				vertices[v].normal = { mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z };
-				vertices[v].texCoord = { mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y };
+				if (mesh->HasTangentsAndBitangents())
+				{
+					vertices[v].tanget = { mesh->mTangents[v].x, mesh->mTangents[v].y, mesh->mTangents[v].z };
+					vertices[v].biTanget = { mesh->mBitangents[v].x, mesh->mBitangents[v].y, mesh->mBitangents[v].z };
+				}
+				if (mesh->HasNormals())
+					vertices[v].normal = { mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z };
+				if (mesh->HasTextureCoords(0))
+					vertices[v].texCoord = { mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y };
 			}
 
 			unsigned int* indices = new unsigned int[mesh->mNumFaces * 3];
@@ -56,15 +61,15 @@ void ProcessNodes(const char* path, std::filesystem::path current, MeshInstance*
 		scene->mMaterials[mesh->mMaterialIndex]->GetTexture(aiTextureType_DIFFUSE, 0, &diffuse);
 		aiString normals;
 		scene->mMaterials[mesh->mMaterialIndex]->GetTexture(aiTextureType_NORMALS, 0, &normals);
-		aiString specular;
-		scene->mMaterials[mesh->mMaterialIndex]->GetTexture(aiTextureType_METALNESS, 0, &specular);
+		aiString emissive;
+		scene->mMaterials[mesh->mMaterialIndex]->GetTexture(aiTextureType_EMISSIVE, 0, &emissive);
 
 		if (materials.contains(mesh->mMaterialIndex))
 			mMesh->material = ResourceManager::GetMaterial(materials[mesh->mMaterialIndex].c_str());
 		else
 		{
 			materials[mesh->mMaterialIndex] = std::filesystem::path(path).filename().string().append("_").append(std::to_string(mesh->mMaterialIndex));
-			mMesh->material = ResourceManager::CreateMaterial(materials[mesh->mMaterialIndex], (current / diffuse.C_Str()).string().c_str(), (current / normals.C_Str()).string().c_str(), (current / specular.C_Str()).string().c_str());
+			mMesh->material = ResourceManager::CreateMaterial(materials[mesh->mMaterialIndex], (current / diffuse.C_Str()).string().c_str(), (current / normals.C_Str()).string().c_str(), (current / emissive.C_Str()).string().c_str());
 		}
 
 		mMesh->mesh->aabb.min = { mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z };

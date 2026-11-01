@@ -38,8 +38,8 @@ namespace Renderer
 	void* CreateVertexShader(const wchar_t* path);
 	void* CreatePixelShader(const wchar_t* path);
 	void* CreateConstantBuffer(size_t size);
-	void* CreateTexture(void* data, unsigned int width, unsigned int height, unsigned int channels);
-	void* CreateTextureWithMipmapping(void* data, unsigned int width, unsigned int height, unsigned int channels);
+	void* CreateTexture(void* data, unsigned int width, unsigned int height, unsigned int channels, bool srgb = false);
+	void* CreateTextureWithMipmapping(void* data, unsigned int width, unsigned int height, unsigned int channels, bool srgb = false);
 	void* CreateInputLayout(const wchar_t* path);
 	void DestroyBuffer(void*);
 	void DestroyVertexShader(void*);
@@ -83,6 +83,44 @@ private:
 	Window& mWindow;
 	void* mSwapChain;
 	void* mRenderTargetView;
+	void* mDepthStencilView;
+	void* mDepthStencilState;
+	struct
+	{
+		float TopLeftX;
+		float TopLeftY;
+		float Width;
+		float Height;
+		float MinDepth;
+		float MaxDepth;
+	} mViewport;
+};
+
+class DeferredContext
+{
+public:
+	DeferredContext(Window&);
+	DeferredContext(DeferredContext&) = delete;
+	~DeferredContext();
+
+	DeferredContext& operator=(DeferredContext&) = delete;
+
+	__int64 PollEvents(void*, unsigned int, unsigned long long, long long);
+
+	void Clear(const Color&);
+	void** GetThem();
+	void Switch();
+	void SwapBuffers(unsigned int interval = 0u);
+
+	void SetFullscreenState(bool state);
+	bool GetFullscreenState();
+
+private:
+	Window& mWindow;
+	void* mSwapChain;
+	void* mGBuffer[4];
+	void* mRenderTargetView;
+	void* mShaderResourceView[4];
 	void* mDepthStencilView;
 	void* mDepthStencilState;
 	struct

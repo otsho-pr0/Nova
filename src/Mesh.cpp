@@ -9,6 +9,10 @@ extern Material* mat;
 void* Mesh::mCB;
 bool MeshInstance::frustum = true;
 
+void* mVS;
+void* mPS;
+void* mIL;
+
 Mesh::Mesh(Vertex* vertices, size_t vSize, unsigned int* indices, size_t iSize)
 {
 	mVB = Renderer::CreateVertexBuffer(vertices, vSize);
@@ -174,6 +178,9 @@ void MeshInstance::Draw()
 		//		Renderer::DrawPoint({ corner.x / corner.w, corner.y / corner.w }, Transform::projection[1][1] / Transform::projection[0][0]);
 	}
 
+	Renderer::BindInputLayout(mIL);
+	Renderer::BindVertexShader(mVS);
+	Renderer::BindPixelShader(mPS);
 	Renderer::BindVertexBuffer(mesh->mVB, sizeof(Vertex), 0u);
 	Renderer::BindIndexBuffer(mesh->mIB);
 	Renderer::BindVSConstantBuffer(mesh->mCB, 0u);

@@ -10,7 +10,7 @@
 class ResourceManager
 {
 public:
-	static Material* CreateMaterial(std::string name, const char* diffuse, const char* normals, const char* specular);
+	static Material* CreateMaterial(std::string name, const char* diffuse, const char* normals, const char* emissive);
 	static Material* GetMaterial(std::string name);
 	static bool HasMaterial(std::string name);
 	static auto MaterialsBegin() { return materials.begin(); }

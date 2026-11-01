@@ -3,9 +3,9 @@
 std::unordered_map<std::string, Mesh*> ResourceManager::meshes;
 std::unordered_map<std::string, Material*> ResourceManager::materials;
 
-Material* ResourceManager::CreateMaterial(std::string name, const char* diffuse, const char* normals, const char* specular)
+Material* ResourceManager::CreateMaterial(std::string name, const char* diffuse, const char* normals, const char* emissive)
 {
-	return materials[name] = new Material(diffuse, normals, specular);
+	return materials[name] = new Material(diffuse, normals, emissive);
 }
 
 Material* ResourceManager::GetMaterial(std::string name)
