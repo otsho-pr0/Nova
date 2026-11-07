@@ -31,11 +31,16 @@ private:
 
 	friend class ResourceManager;
 	friend class MeshInstance;
+	friend class Model;
 	friend void Nova::Init();
+
+	static void* mVS;
+	static void* mPS;
+	static void* mIL;
+	static void* mCB;
 
 	void* mVB;
 	void* mIB;
-	static void* mCB;
 	unsigned int mCount;
 };
 
@@ -43,11 +48,9 @@ class MeshInstance : public Node
 {
 public:
 	MeshInstance(Mesh*);
-	void Draw();
+	void Draw(void* PS = Mesh::mPS);
 
 	Material* material;
-
-	static bool frustum;
 
 	Mesh* mesh;
 };

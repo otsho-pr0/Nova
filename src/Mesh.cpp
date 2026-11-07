@@ -6,12 +6,10 @@
 
 extern Material* mat;
 
+void* Mesh::mVS;
+void* Mesh::mPS;
+void* Mesh::mIL;
 void* Mesh::mCB;
-bool MeshInstance::frustum = true;
-
-void* mVS;
-void* mPS;
-void* mIL;
 
 Mesh::Mesh(Vertex* vertices, size_t vSize, unsigned int* indices, size_t iSize)
 {
@@ -109,7 +107,7 @@ MeshInstance::MeshInstance(Mesh* mesh) :
 {
 }
 
-void MeshInstance::Draw()
+void MeshInstance::Draw(void* PS)
 {
 	struct
 	{
@@ -128,59 +126,56 @@ void MeshInstance::Draw()
 		far: row 4 - row 3
 	*/
 
-	if (frustum)
+	Matrix MVP = Transform::projection * Transform::view * (mParent * transform);
+	Vector4 corners[8] =
 	{
-		Matrix MVP = Transform::projection * Transform::view * (mParent * transform);
-		Vector4 corners[8] =
-		{
-			MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.min.y, mesh->aabb.min.z, 1.0f },
-			MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.min.y, mesh->aabb.min.z, 1.0f },
-			MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.max.y, mesh->aabb.min.z, 1.0f },
-			MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.min.y, mesh->aabb.max.z, 1.0f },
-			MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.max.y, mesh->aabb.max.z, 1.0f },
-			MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.max.y, mesh->aabb.max.z, 1.0f },
-			MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.min.y, mesh->aabb.max.z, 1.0f },
-			MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.max.y, mesh->aabb.min.z, 1.0f }
-		};
+		MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.min.y, mesh->aabb.min.z, 1.0f },
+		MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.min.y, mesh->aabb.min.z, 1.0f },
+		MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.max.y, mesh->aabb.min.z, 1.0f },
+		MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.min.y, mesh->aabb.max.z, 1.0f },
+		MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.max.y, mesh->aabb.max.z, 1.0f },
+		MVP * Vector4{ mesh->aabb.min.x, mesh->aabb.max.y, mesh->aabb.max.z, 1.0f },
+		MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.min.y, mesh->aabb.max.z, 1.0f },
+		MVP * Vector4{ mesh->aabb.max.x, mesh->aabb.max.y, mesh->aabb.min.z, 1.0f }
+	};
 		
-		bool outLeft = true;
-		for (auto& corner : corners) if (corner.x >= -corner.w) { outLeft = false; break; };
-		if (outLeft)
-			return;
+	bool outLeft = true;
+	for (auto& corner : corners) if (corner.x >= -corner.w) { outLeft = false; break; };
+	if (outLeft)
+		return;
 
-		bool outRight = true;
-		for (auto& corner : corners) if (corner.x <= corner.w) { outRight = false;  break; };
-		if (outRight)
-			return;
+	bool outRight = true;
+	for (auto& corner : corners) if (corner.x <= corner.w) { outRight = false;  break; };
+	if (outRight)
+		return;
 
-		bool outTop = true;
-		for (auto& corner : corners) if (corner.y <= corner.w) { outTop = false;  break; };
-		if (outTop)
-			return;
+	bool outTop = true;
+	for (auto& corner : corners) if (corner.y <= corner.w) { outTop = false;  break; };
+	if (outTop)
+		return;
 
-		bool outBottom = true;
-		for (auto& corner : corners) if (corner.y >= -corner.w) { outBottom = false;  break; };
-		if (outBottom)
-			return;
+	bool outBottom = true;
+	for (auto& corner : corners) if (corner.y >= -corner.w) { outBottom = false;  break; };
+	if (outBottom)
+		return;
 
-		bool outNear = true;
-		for (auto& corner : corners) if (corner.z >= 0) { outNear = false;  break; };
-		if (outNear)
-			return;
+	bool outNear = true;
+	for (auto& corner : corners) if (corner.z >= 0) { outNear = false;  break; };
+	if (outNear)
+		return;
 
-		bool outFar = true;
-		for (auto& corner : corners) if (corner.z <= corner.w) { outFar = false;  break; };
-		if (outFar)
-			return;
+	bool outFar = true;
+	for (auto& corner : corners) if (corner.z <= corner.w) { outFar = false;  break; };
+	if (outFar)
+		return;
 
-		//for (auto& corner : corners)
-		//	if (corner.x >= -corner.w && corner.x <= corner.w && corner.y <= corner.w && corner.y >= -corner.w && corner.z >= 0 && corner.z <= corner.w)
-		//		Renderer::DrawPoint({ corner.x / corner.w, corner.y / corner.w }, Transform::projection[1][1] / Transform::projection[0][0]);
-	}
+	//for (auto& corner : corners)
+	//	if (corner.x >= -corner.w && corner.x <= corner.w && corner.y <= corner.w && corner.y >= -corner.w && corner.z >= 0 && corner.z <= corner.w)
+	//		Renderer::DrawPoint({ corner.x / corner.w, corner.y / corner.w }, Transform::projection[1][1] / Transform::projection[0][0]);
 
-	Renderer::BindInputLayout(mIL);
-	Renderer::BindVertexShader(mVS);
-	Renderer::BindPixelShader(mPS);
+	Renderer::BindInputLayout(Mesh::mIL);
+	Renderer::BindVertexShader(Mesh::mVS);
+	Renderer::BindPixelShader(PS);
 	Renderer::BindVertexBuffer(mesh->mVB, sizeof(Vertex), 0u);
 	Renderer::BindIndexBuffer(mesh->mIB);
 	Renderer::BindVSConstantBuffer(mesh->mCB, 0u);

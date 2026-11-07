@@ -10,12 +10,6 @@
 
 extern IMGUI_IMPL_API __int64 ImGui_ImplWin32_WndProcHandler(struct HWND__* hWnd, unsigned int msg, unsigned long long wParam, long long lParam);
 
-void* surfaceVS;
-void* surfacePS;
-void* vb;
-void* ib;
-void* il;
-
 App::App()
 {
 	window.SetCustomWindowProc([&](void* hWnd, unsigned int msg, unsigned long long wParam, long long lParam) -> __int64
@@ -52,26 +46,6 @@ App::App()
 
 	ImGui_ImplWin32_Init(window.GetHandle());
 	ImGui_ImplDX11_Init(reinterpret_cast<ID3D11Device*>(Renderer::GetDevice()), reinterpret_cast<ID3D11DeviceContext*>(Renderer::GetContext()));
-
-	surfaceVS = Renderer::CreateVertexShader(L"../../../res/SurfaceVS.hlsl");
-	surfacePS = Renderer::CreatePixelShader(L"../../../res/SurfacePS.hlsl");
-	float2 vertices[] =
-	{
-		{ -1.0f,  1.0f },
-		{  1.0f,  1.0f },
-		{ -1.0f, -1.0f },
-		{  1.0f, -1.0f }
-	};
-
-	unsigned int indices[] =
-	{
-		0u, 1u, 2u,
-		1u, 3u, 2u
-	};
-
-	vb = Renderer::CreateVertexBuffer(vertices, sizeof(vertices));
-	ib = Renderer::CreateIndexBuffer(indices, sizeof(indices));
-	il = Renderer::CreateInputLayout(L"../../../res/SurfaceVS.hlsl");
 }
 
 void App::Run()
@@ -92,6 +66,8 @@ void App::Update()
 
 	if (Input::GetKeyUp(Input::Key::Key_F1))
 		settings = !settings;
+	if (Input::GetKeyUp(Input::Key::Key_G))
+		gbuffer = !gbuffer;
 	if (Input::GetKeyUp(Input::Key::Key_1))
 		pcbuffer.mode = 1;
 	if (Input::GetKeyUp(Input::Key::Key_2))
@@ -142,94 +118,90 @@ void App::Update()
 	ImGui::DockSpaceOverViewport();
 	ImGui::PopStyleColor();
 
-	if (settings)
+	ImGui::Begin("Settings");
+	ImGui::Text("FPS: %f", io.Framerate);
+	ImGui::Checkbox("VSync", &vsync);
+	ImGui::SliderFloat("Speed", &speed, 0.0f, 2.0f);
+	ImGui::DragFloat("Sensetivity", &sensitivity, 1.0f, 10.0f, 100.0f);
+	if (ImGui::DragFloat3("light dir", &pcbuffer.lightDir, 0.01f))
+		pcbuffer.lightDir.Normalize();
+	ImGui::SliderInt("mode", &pcbuffer.mode, 1, 5);
+	ImGui::Checkbox("Normal Mapping", reinterpret_cast<bool*>(&pcbuffer.normalMapping));
+	ImGui::Checkbox("Emission", reinterpret_cast<bool*>(&pcbuffer.emission));
+	if (ImGui::BeginTabBar("Resources"))
 	{
-		ImGui::Begin("Settings", &settings, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize);
-		ImGui::Text("FPS: %f", io.Framerate);
-		ImGui::Checkbox("VSync", &vsync);
-		ImGui::Checkbox("Frustum Culling", &MeshInstance::frustum);
-		ImGui::SliderFloat("Speed", &speed, 0.0f, 2.0f);
-		ImGui::DragFloat("Sensetivity", &sensitivity, 1.0f, 10.0f, 100.0f);
-		if (ImGui::DragFloat3("light dir", &pcbuffer.lightDir, 0.01f))
-			pcbuffer.lightDir.Normalize();
-		ImGui::SliderInt("mode", &pcbuffer.mode, 0, 5);
-		ImGui::Checkbox("Normal Mapping", reinterpret_cast<bool*>(&pcbuffer.normalMapping));
-		ImGui::Checkbox("Emission", reinterpret_cast<bool*>(&pcbuffer.emission));
-		if (ImGui::BeginTabBar("Resources"))
+		if (ImGui::BeginTabItem("Materials"))
 		{
-			if (ImGui::BeginTabItem("Materials"))
+			static const char* preview = ResourceManager::MaterialsBegin()->first.c_str();
+			if (ImGui::BeginCombo("Material", preview))
 			{
-				static const char* preview = ResourceManager::MaterialsBegin()->first.c_str();
-				if (ImGui::BeginCombo("Material", preview))
-				{
-					unsigned int i = 0;
-					for (auto mat = ResourceManager::MaterialsBegin(); mat != ResourceManager::MaterialsEnd(); ++mat)
-						if (ImGui::Selectable(mat->first.c_str()))
-							preview = mat->first.c_str();
-					ImGui::EndCombo();
-				}
-				ImGui::Image(ResourceManager::GetMaterial(preview)->GetDiffuse(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
-				ImGui::SameLine(0.0f, 0.0f);
-				ImGui::Image(ResourceManager::GetMaterial(preview)->GetNormals(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
-				ImGui::Image(ResourceManager::GetMaterial(preview)->GetEmissive(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
-				ImGui::EndTabItem();
+				unsigned int i = 0;
+				for (auto mat = ResourceManager::MaterialsBegin(); mat != ResourceManager::MaterialsEnd(); ++mat)
+					if (ImGui::Selectable(mat->first.c_str()))
+						preview = mat->first.c_str();
+				ImGui::EndCombo();
 			}
-			if (ImGui::BeginTabItem("Meshes"))
-			{
-				static const char* preview = ResourceManager::MeshesBegin()->first.c_str();
-				if (ImGui::BeginCombo("Mesh", preview))
-				{
-					unsigned int i = 0;
-					for (auto mesh = ResourceManager::MeshesBegin(); mesh != ResourceManager::MeshesEnd(); ++mesh)
-						if (ImGui::Selectable(mesh->first.c_str()))
-							preview = mesh->first.c_str();
-					ImGui::EndCombo();
-				}
-				ImGui::EndTabItem();
-			}
-			ImGui::EndTabBar();
+			ImGui::Image(ResourceManager::GetMaterial(preview)->GetDiffuse(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
+			ImGui::SameLine(0.0f, 0.0f);
+			ImGui::Image(ResourceManager::GetMaterial(preview)->GetNormals(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
+			ImGui::Image(ResourceManager::GetMaterial(preview)->GetEmissive(), { (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f, (ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2.0f) / 2.0f });
+			ImGui::EndTabItem();
 		}
-		ImGui::End();
-	}
-	else
-	{
-		ImGui::Begin("Hierarchy");
-		static Node* selected = &model;
-		auto hy = [&](auto& self, Node* node) -> void
+		if (ImGui::BeginTabItem("Meshes"))
+		{
+			static const char* preview = ResourceManager::MeshesBegin()->first.c_str();
+			if (ImGui::BeginCombo("Mesh", preview))
 			{
-				std::stringstream name;
-				name << node->name;
+				unsigned int i = 0;
+				for (auto mesh = ResourceManager::MeshesBegin(); mesh != ResourceManager::MeshesEnd(); ++mesh)
+					if (ImGui::Selectable(mesh->first.c_str()))
+						preview = mesh->first.c_str();
+				ImGui::EndCombo();
+			}
+			ImGui::EndTabItem();
+		}
+		ImGui::EndTabBar();
+	}
+	ImGui::End();
+	ImGui::Begin("Hierarchy");
+	static Node* selected = &model;
+	auto hy = [&](auto& self, Node* node) -> void
+		{
+			std::stringstream name;
+			name << node->name;
 
-				bool expanded = ImGui::TreeNodeEx(name.str().c_str(), ImGuiTreeNodeFlags_OpenOnArrow | (node->children.size() == 0u ? ImGuiTreeNodeFlags_Leaf : 0u) | (node == selected ? ImGuiTreeNodeFlags_Selected : 0u));
-				if (ImGui::IsItemClicked())
-					selected = node;
-				if (expanded)
-				{
-					for (auto* child : node->children)
-						self(self, child);
-					ImGui::TreePop();
-				}
-			};
-		hy(hy, &model);
-		ImGui::End();
+			bool expanded = ImGui::TreeNodeEx(name.str().c_str(), ImGuiTreeNodeFlags_OpenOnArrow | (node->children.size() == 0u ? ImGuiTreeNodeFlags_Leaf : 0u) | (node == selected ? ImGuiTreeNodeFlags_Selected : 0u));
+			if (ImGui::IsItemClicked())
+				selected = node;
+			if (expanded)
+			{
+				for (auto* child : node->children)
+					self(self, child);
+				ImGui::TreePop();
+			}
+		};
+	hy(hy, &model);
+	ImGui::End();
 
-		ImGui::Begin("Inspector");
-		ImGui::DragFloat3("position", &selected->transform.position, 0.01f);
-		ImGui::SliderAngle("x", &selected->transform.rotation.x);
-		ImGui::SliderAngle("y", &selected->transform.rotation.y);
-		ImGui::SliderAngle("z", &selected->transform.rotation.z);
-		ImGui::DragFloat3("scale", &selected->transform.scale, 0.01f);
+	ImGui::Begin("Inspector");
+	ImGui::DragFloat3("position", &selected->transform.position, 0.01f);
+	ImGui::SliderAngle("x", &selected->transform.rotation.x);
+	ImGui::SliderAngle("y", &selected->transform.rotation.y);
+	ImGui::SliderAngle("z", &selected->transform.rotation.z);
+	ImGui::DragFloat3("scale", &selected->transform.scale, 0.01f);
+	ImGui::End();
+
+	if (gbuffer)
+	{
+		ImGui::Begin("GBuffers", &gbuffer, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
+		ImGui::Image(context.GetThem()[0], { ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x, (ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x) * (static_cast<float>(window.GetSize().y) / window.GetSize().x) });
+		ImGui::SameLine(0.0f, 0.0f);
+		ImGui::Image(context.GetThem()[2], { ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x, (ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x) * (static_cast<float>(window.GetSize().y) / window.GetSize().x) });
+		ImGui::Image(context.GetThem()[1], { ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x, (ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x) * (static_cast<float>(window.GetSize().y) / window.GetSize().x) });
+		ImGui::SameLine(0.0f, 0.0f);
+		//ImGui::Image(context.GetThem()[3], { ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x, (ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x) * (static_cast<float>(window.GetSize().y) / window.GetSize().x) });
 		ImGui::End();
 	}
-
-	ImGui::Begin("GBuffers", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
-	ImGui::Image(context.GetThem()[0], { ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x, (ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x) * (static_cast<float>(window.GetSize().y) / window.GetSize().x) });
-	ImGui::SameLine(0.0f, 0.0f);
-	ImGui::Image(context.GetThem()[2], { ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x, (ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x) * (static_cast<float>(window.GetSize().y) / window.GetSize().x) });
-	ImGui::Image(context.GetThem()[1], { ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x, (ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x) * (static_cast<float>(window.GetSize().y) / window.GetSize().x) });
-	ImGui::SameLine(0.0f, 0.0f);
-	//ImGui::Image(context.GetThem()[3], { ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x, (ImGui::GetWindowSize().x / 2.0f - ImGui::GetStyle().WindowPadding.x) * (static_cast<float>(window.GetSize().y) / window.GetSize().x) });
-	ImGui::End();
 
 	pcbuffer.cameraPos = camera.transform.position;
 	Renderer::UpdateConstantBuffer(pcb, &pcbuffer, sizeof(pcbuffer));
@@ -241,20 +213,10 @@ void App::Update()
 void App::Render()
 {
 	context.Clear({ 0.0f, 0.0f, 0.0f, 1.0f });
+	model.Draw(nullptr);
+	context.SwitchDepthPass();
 	model.Draw();
 	context.Switch();
-	Renderer::BindVertexShader(surfaceVS);
-	Renderer::BindPixelShader(surfacePS);
-	Renderer::BindInputLayout(il);
-	Renderer::BindVertexBuffer(vb, sizeof(float2), 0u);
-	Renderer::BindIndexBuffer(ib);
-	Renderer::BindTexture(context.GetThem()[0], 0u);
-	Renderer::BindTexture(context.GetThem()[1], 1u);
-	Renderer::BindTexture(context.GetThem()[2], 2u);
-	Renderer::DrawIndexed(6);
-	Renderer::BindTexture(nullptr, 0u);
-	Renderer::BindTexture(nullptr, 1u);
-	Renderer::BindTexture(nullptr, 2u);
 	ImGui::Render();
 	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 	context.SwapBuffers(vsync);

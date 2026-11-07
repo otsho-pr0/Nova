@@ -7,7 +7,7 @@ class Model : public Node
 public:
 	Model(const char* path);
 
-	void Draw();
+	void Draw(void* PS = Mesh::mPS);
 
 private:
 	MeshInstance** mMeshes = nullptr;

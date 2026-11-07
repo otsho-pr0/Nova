@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Nova/Nova.hpp>
+
 class Window;
 
 typedef struct
@@ -109,6 +111,7 @@ public:
 
 	void Clear(const Color&);
 	void** GetThem();
+	void SwitchDepthPass();
 	void Switch();
 	void SwapBuffers(unsigned int interval = 0u);
 
@@ -116,6 +119,8 @@ public:
 	bool GetFullscreenState();
 
 private:
+	friend void Nova::Init();
+
 	Window& mWindow;
 	void* mSwapChain;
 	void* mGBuffer[4];
@@ -123,6 +128,7 @@ private:
 	void* mShaderResourceView[4];
 	void* mDepthStencilView;
 	void* mDepthStencilState;
+	void* mDepthEqualStencilState;
 	struct
 	{
 		float TopLeftX;
@@ -132,4 +138,10 @@ private:
 		float MinDepth;
 		float MaxDepth;
 	} mViewport;
+
+	static void* surfaceVS;
+	static void* surfacePS;
+	static void* surfaceVB;
+	static void* surfaceIB;
+	static void* surfaceIL;
 };

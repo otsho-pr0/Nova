@@ -33,6 +33,7 @@ private:
 	float sensitivity = 75.0f;
 	float speed = 1.0f;
 	bool settings = false;
+	bool gbuffer = false;
 	//Model model = Model("../../../res/Models/DamagedHelmet/DamagedHelmet.gltf");
 	Model model = Model("../../../res/Models/Sponza/Sponza.gltf");
 	Camera camera;

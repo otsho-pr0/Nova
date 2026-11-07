@@ -95,8 +95,8 @@ Model::Model(const char* path)
 	ProcessNodes(path, current, mMeshes, this, scene, scene->mRootNode);
 }
 
-void Model::Draw()
+void Model::Draw(void* PS)
 {
 	for (unsigned int m = 0; m < mNumMeshes; m++)
-		mMeshes[m]->Draw();
+		mMeshes[m]->Draw(PS);
 }

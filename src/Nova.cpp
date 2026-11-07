@@ -62,6 +62,29 @@ void Nova::Init()
 	mat = ResourceManager::CreateMaterial("default", "../../../res/Checker.jpg", "../../../res/CheckerNormals.jpg", "");
 
 	Mesh::mCB = Renderer::CreateConstantBuffer(sizeof(Matrix) * 3);
+	DeferredContext::surfaceVS = Renderer::CreateVertexShader(L"../../../res/SurfaceVS.hlsl");
+	DeferredContext::surfacePS = Renderer::CreatePixelShader(L"../../../res/SurfacePS.hlsl");
+	float2 vertices[] =
+	{
+		{ -1.0f,  1.0f },
+		{  1.0f,  1.0f },
+		{ -1.0f, -1.0f },
+		{  1.0f, -1.0f }
+	};
+
+	unsigned int indices[] =
+	{
+		0u, 1u, 2u,
+		1u, 3u, 2u
+	};
+
+	DeferredContext::surfaceVB = Renderer::CreateVertexBuffer(vertices, sizeof(vertices));
+	DeferredContext::surfaceIB = Renderer::CreateIndexBuffer(indices, sizeof(indices));
+	DeferredContext::surfaceIL = Renderer::CreateInputLayout(L"../../../res/SurfaceVS.hlsl");
+
+	Mesh::mIL = Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
+	Mesh::mVS = Renderer::CreateVertexShader(L"../../../res/VertexShader.hlsl");
+	Mesh::mPS = Renderer::CreatePixelShader(L"../../../res/PixelShader.hlsl");
 }
 
 void Nova::PollEvents()

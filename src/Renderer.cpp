@@ -11,10 +11,13 @@ ID3D11Device* device;
 ID3D11DeviceContext* context;
 ID3D11InfoQueue* infoQueue;
 
+void* DeferredContext::surfaceVS;
+void* DeferredContext::surfacePS;
+void* DeferredContext::surfaceVB;
+void* DeferredContext::surfaceIB;
+void* DeferredContext::surfaceIL;
+
 extern void* tex;
-extern void* mVS;
-extern void* mPS;
-extern void* mIL;
 
 void* Renderer::CreateVertexBuffer(void* vertices, size_t size)
 {
@@ -368,8 +371,6 @@ RendererContext::RendererContext(Window& window) :
 	context->OMSetRenderTargets(1u, reinterpret_cast<ID3D11RenderTargetView**>(&mRenderTargetView), reinterpret_cast<ID3D11DepthStencilView*>(mDepthStencilView));
 	context->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState*>(mDepthStencilState), 0u);
 	context->RSSetViewports(1u, reinterpret_cast<D3D11_VIEWPORT*>(&mViewport));
-
-	mIL = Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	ID3D11SamplerState* ss;
@@ -383,11 +384,6 @@ RendererContext::RendererContext(Window& window) :
 	sd.MaxLOD = D3D11_FLOAT32_MAX;
 	device->CreateSamplerState(&sd, &ss);
 	context->PSSetSamplers(0u, 1u, &ss);
-
-	void* mVS = Renderer::CreateVertexShader(L"../../../res/VertexShader.hlsl");
-	void* mPS = Renderer::CreatePixelShader(L"../../../res/PixelShader.hlsl");
-	Renderer::BindVertexShader(mVS);
-	Renderer::BindPixelShader(mPS);
 }
 
 RendererContext::~RendererContext()
@@ -533,6 +529,8 @@ DeferredContext::DeferredContext(Window& window) :
 	dsd.DepthFunc = D3D11_COMPARISON_LESS;
 	dsd.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
 	device->CreateDepthStencilState(&dsd, reinterpret_cast<ID3D11DepthStencilState**>(&mDepthStencilState));
+	dsd.DepthFunc = D3D11_COMPARISON_EQUAL;
+	device->CreateDepthStencilState(&dsd, reinterpret_cast<ID3D11DepthStencilState**>(&mDepthEqualStencilState));
 
 	mViewport = {.Width = static_cast<float>(mWindow.GetSize().x), .Height = static_cast<float>(mWindow.GetSize().y), .MinDepth = 0.0f, .MaxDepth = 1.0f};
 
@@ -540,7 +538,6 @@ DeferredContext::DeferredContext(Window& window) :
 	context->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState*>(mDepthStencilState), 0u);
 	context->RSSetViewports(1u, reinterpret_cast<D3D11_VIEWPORT*>(&mViewport));
 
-	mIL = Renderer::CreateInputLayout(L"../../../res/VertexShader.hlsl");
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	ID3D11SamplerState* ss;
@@ -554,9 +551,6 @@ DeferredContext::DeferredContext(Window& window) :
 	sd.MaxLOD = D3D11_FLOAT32_MAX;
 	device->CreateSamplerState(&sd, &ss);
 	context->PSSetSamplers(0u, 1u, &ss);
-
-	mVS = Renderer::CreateVertexShader(L"../../../res/VertexShader.hlsl");
-	mPS = Renderer::CreatePixelShader(L"../../../res/PixelShader.hlsl");
 }
 
 DeferredContext::~DeferredContext()
@@ -637,7 +631,6 @@ __int64 DeferredContext::PollEvents(void* hWnd, unsigned int msg, unsigned long 
 			mViewport.Height = static_cast<float>(height);
 
 			context->OMSetRenderTargets(3u, reinterpret_cast<ID3D11RenderTargetView**>(&mGBuffer), reinterpret_cast<ID3D11DepthStencilView*>(mDepthStencilView));
-			context->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState*>(mDepthStencilState), 0u);
 			context->RSSetViewports(1u, reinterpret_cast<D3D11_VIEWPORT*>(&mViewport));
 		}
 		break;
@@ -660,9 +653,27 @@ void** DeferredContext::GetThem()
 	return mShaderResourceView;
 }
 
+void DeferredContext::SwitchDepthPass()
+{
+	context->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState*>(mDepthEqualStencilState), 0u);
+}
+
 void DeferredContext::Switch()
 {
+	context->OMSetDepthStencilState(reinterpret_cast<ID3D11DepthStencilState*>(mDepthStencilState), 0u);
 	context->OMSetRenderTargets(1u, reinterpret_cast<ID3D11RenderTargetView**>(&mRenderTargetView), reinterpret_cast<ID3D11DepthStencilView*>(mDepthStencilView));
+	Renderer::BindVertexShader(surfaceVS);
+	Renderer::BindPixelShader(surfacePS);
+	Renderer::BindInputLayout(surfaceIL);
+	Renderer::BindVertexBuffer(surfaceVB, sizeof(float2), 0u);
+	Renderer::BindIndexBuffer(surfaceIB);
+	Renderer::BindTexture(mShaderResourceView[0], 0u);
+	Renderer::BindTexture(mShaderResourceView[1], 1u);
+	Renderer::BindTexture(mShaderResourceView[2], 2u);
+	Renderer::DrawIndexed(6);
+	Renderer::BindTexture(nullptr, 0u);
+	Renderer::BindTexture(nullptr, 1u);
+	Renderer::BindTexture(nullptr, 2u);
 }
 
 void DeferredContext::SwapBuffers(unsigned int interval)

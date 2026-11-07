@@ -33,7 +33,6 @@ PSOutput main(VSOutput i)
 {
 	PSOutput o;
 	o.albedo = emission ? diffuse.Sample(ss, i.vTexCoord) + emissive.Sample(ss, i.vTexCoord) : diffuse.Sample(ss, i.vTexCoord);
-	clip(o.albedo.a - 1.0f);
 	float3 sample = normals.Sample(ss, i.vTexCoord).rgb * 2.0f - 1.0f;
 	sample.g = -sample.g;
 	o.normal = float4(mul(normalMapping ? sample : float3(0.0f, 0.0f, 1.0f), float3x3(i.vTangent, i.vBiTangent, i.vNormal)), 1.0f);
